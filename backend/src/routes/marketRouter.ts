@@ -1,0 +1,198 @@
+import { Router, Request, Response } from 'express';
+import { db } from '../db/index.js';
+import { config } from '../config/index.js';
+import { getProviderManager } from './systemRouter.js';
+
+export const marketRouter = Router();
+
+// GET /api/instruments
+marketRouter.get('/instruments', (req: Request, res: Response) => {
+  try {
+    const instruments = db.store.instruments.filter(i => i.active);
+    res.json({
+      success: true,
+      count: instruments.length,
+      data: instruments,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve instruments' });
+  }
+});
+
+// GET /api/market/:exchange/:symbol/quote
+marketRouter.get('/market/:exchange/:symbol/quote', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { symbol, exchange } = req.params;
+    const providerManager = getProviderManager();
+    const activeMode = providerManager?.getCurrentMode?.() || config.appMode;
+
+    let inst = db.store.instruments.find(
+      i => i.symbol.toUpperCase() === symbol.toUpperCase() && i.exchange.toUpperCase() === exchange.toUpperCase()
+    );
+
+    // If in END_OF_DAY mode or provider is TejHQ, query genuine data
+    if (activeMode === 'END_OF_DAY' || config.provider.name.toLowerCase() === 'tejhq') {
+      const tejhq = providerManager?.getTejHQAdapter();
+      if (tejhq) {
+        const tejQuote = await tejhq.getQuote(exchange, symbol);
+        if (tejQuote) {
+          // Ensure instrument exists in DB for watchlist and alert relations
+          const instId = inst?.id || `inst-${exchange.toLowerCase()}-${symbol.toLowerCase()}`;
+          await db.upsertInstrument({
+            id: instId,
+            exchange: tejQuote.exchange,
+            symbol: tejQuote.symbol,
+            name: tejQuote.name,
+            sector: inst?.sector || 'Equities',
+            provider_instrument_key: inst?.provider_instrument_key || tejQuote.isin,
+          });
+
+          res.json({
+            success: true,
+            data: {
+              symbol: tejQuote.symbol,
+              exchange: tejQuote.exchange,
+              name: tejQuote.name,
+              sector: inst?.sector || 'Equities',
+              price: tejQuote.price,
+              open: tejQuote.open,
+              high: tejQuote.high,
+              low: tejQuote.low,
+              close: tejQuote.close,
+              prevClose: tejQuote.prevClose,
+              change: tejQuote.change,
+              changePct: tejQuote.changePct,
+              volume: tejQuote.volume,
+              timestamp: tejQuote.timestamp,
+              tradingDate: tejQuote.tradingDate,
+              lastUpdatedIst: tejQuote.lastUpdatedIst,
+              sourceMode: 'END_OF_DAY',
+              provider: tejQuote.provider,
+              freshness: 'END_OF_DAY',
+            },
+          });
+          return;
+        }
+      }
+    }
+
+    if (!inst) {
+      res.status(404).json({ error: `Instrument ${exchange}:${symbol} not found.` });
+      return;
+    }
+
+    // Fallback to persisted candles (e.g. simulated or cached mode)
+    const candles = db.store.market_candles
+      .filter(c => c.instrument_id === inst!.id)
+      .sort((a, b) => new Date(b.candle_start).getTime() - new Date(a.candle_start).getTime());
+
+    const latest = candles[0];
+    const prev = candles[1] || latest;
+
+    const price = latest ? latest.close : 1000;
+    const prevPrice = prev ? prev.close : price;
+    const change = Number((price - prevPrice).toFixed(2));
+    const changePct = Number(((change / prevPrice) * 100).toFixed(2));
+
+    res.json({
+      success: true,
+      data: {
+        symbol: inst.symbol,
+        exchange: inst.exchange,
+        name: inst.name,
+        sector: inst.sector,
+        price,
+        open: latest ? latest.open : price,
+        high: latest ? latest.high : price,
+        low: latest ? latest.low : price,
+        close: price,
+        prevClose: prevPrice,
+        change,
+        changePct,
+        volume: latest ? latest.volume : 0,
+        timestamp: latest ? latest.candle_start : new Date().toISOString(),
+        sourceMode: latest ? latest.source_mode : 'SIMULATED',
+        provider: latest ? latest.provider : 'MarketPulse',
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve quote' });
+  }
+});
+
+// GET /api/market/:exchange/:symbol/candles
+marketRouter.get('/market/:exchange/:symbol/candles', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { symbol, exchange } = req.params;
+    const limit = Math.min(parseInt(req.query.limit as string || '100', 10), 500);
+    const providerManager = getProviderManager();
+    const activeMode = providerManager?.getCurrentMode?.() || config.appMode;
+
+    let inst = db.store.instruments.find(
+      i => i.symbol.toUpperCase() === symbol.toUpperCase() && i.exchange.toUpperCase() === exchange.toUpperCase()
+    );
+
+    // If in END_OF_DAY mode or provider is TejHQ, fetch genuine historical OHLCV
+    if (activeMode === 'END_OF_DAY' || config.provider.name.toLowerCase() === 'tejhq') {
+      const tejhq = providerManager?.getTejHQAdapter();
+      if (tejhq) {
+        const candles = await tejhq.getCandles(exchange, symbol, limit);
+        if (candles && candles.length > 0) {
+          const instId = inst?.id || `inst-${exchange.toLowerCase()}-${symbol.toLowerCase()}`;
+          // Asynchronously persist candles with unique constraint
+          tejhq.syncCandlesToDatabase(exchange, symbol, instId, 50).catch(() => {});
+
+          res.json({
+            success: true,
+            symbol: symbol.toUpperCase(),
+            exchange: exchange.toUpperCase(),
+            count: candles.length,
+            sourceMode: 'END_OF_DAY',
+            provider: 'TejHQ',
+            tradingDate: candles[candles.length - 1]?.date,
+            data: candles.map((c: any) => ({
+              id: c.id,
+              timestamp: c.timestamp,
+              open: c.open,
+              high: c.high,
+              low: c.low,
+              close: c.close,
+              volume: c.volume,
+              sourceMode: 'END_OF_DAY',
+            })),
+          });
+          return;
+        }
+      }
+    }
+
+    if (!inst) {
+      res.status(404).json({ error: `Instrument ${exchange}:${symbol} not found.` });
+      return;
+    }
+
+    const candles = db.store.market_candles
+      .filter(c => c.instrument_id === inst!.id)
+      .sort((a, b) => new Date(a.candle_start).getTime() - new Date(b.candle_start).getTime())
+      .slice(-limit);
+
+    res.json({
+      success: true,
+      symbol: inst.symbol,
+      exchange: inst.exchange,
+      count: candles.length,
+      data: candles.map(c => ({
+        id: c.id,
+        timestamp: c.candle_start,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+        volume: c.volume,
+        sourceMode: c.source_mode,
+      })),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve candles' });
+  }
+});
