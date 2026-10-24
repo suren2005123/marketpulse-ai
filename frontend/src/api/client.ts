@@ -19,10 +19,20 @@ async function request<T = any>(
   isRetry = false
 ): Promise<T> {
   const headers = new Headers(options.headers || {});
-  headers.set('Content-Type', 'application/json');
+  if (options.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   if (currentAccessToken) {
     headers.set('Authorization', `Bearer ${currentAccessToken}`);
+  }
+
+  const controller = new AbortController();
+  const timeoutMs = 15000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  if (options.signal) {
+    options.signal.addEventListener('abort', () => controller.abort(), { once: true });
   }
 
   // Ensure cookies (refreshToken) are sent with every request
@@ -30,18 +40,39 @@ async function request<T = any>(
     ...options,
     headers,
     credentials: 'include',
+    signal: controller.signal,
   };
 
-  const response = await fetch(endpoint, fetchOptions);
+  let response: Response;
+  try {
+    response = await fetch(endpoint, fetchOptions);
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      const timeoutError: any = new Error(`Request to ${endpoint} timed out. Please check backend connectivity.`);
+      timeoutError.code = 'TIMEOUT';
+      throw timeoutError;
+    }
+    const networkError: any = new Error(`Unable to connect to backend service. Please ensure the server on port 5000 is running.`);
+    networkError.code = 'NETWORK_ERROR';
+    networkError.cause = err;
+    throw networkError;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   // 401 Unauthorized handling: transparent refresh retry
   if (response.status === 401 && !isRetry && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/refresh')) {
     try {
+      const refreshController = new AbortController();
+      const timer = setTimeout(() => refreshController.abort(), 6000);
       const refreshRes = await fetch('/api/auth/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        signal: refreshController.signal,
       });
+      clearTimeout(timer);
 
       if (refreshRes.ok) {
         const refreshData = await refreshRes.json();

@@ -109,9 +109,9 @@ export const Watchlist: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {watchlist.map((item) => {
           const liveQ = quotes[item.symbol];
-          const price = liveQ?.price || item.price;
-          const change = liveQ?.change ?? item.change;
-          const changePct = liveQ?.changePct ?? item.changePct;
+          const price = Number(liveQ?.price ?? item.price ?? 0);
+          const change = Number(liveQ?.change ?? item.change ?? 0);
+          const changePct = Number(liveQ?.changePct ?? item.changePct ?? 0);
           const isPos = change >= 0;
 
           return (

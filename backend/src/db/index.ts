@@ -1,8 +1,11 @@
-import { Pool, PoolConfig } from 'pg';
+import { Pool, PoolConfig, types } from 'pg';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { config } from '../config/index.js';
+
+// Automatically parse PostgreSQL NUMERIC/DECIMAL (OID 1700) to JavaScript float numbers
+types.setTypeParser(1700, (val: string) => (val === null ? null : parseFloat(val)));
 
 export interface QueryResult<T = any> {
   rows: T[];

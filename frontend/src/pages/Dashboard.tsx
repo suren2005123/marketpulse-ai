@@ -102,10 +102,10 @@ export const Dashboard: React.FC = () => {
   // Merge real-time updates for selected stock
   const currentLiveQuote = quotes[selectedSymbol];
   const lastCandle = candles[candles.length - 1];
-  const displayPrice = currentLiveQuote?.price || lastCandle?.close || 2985.50;
-  const prevPrice = lastCandle ? lastCandle.open : displayPrice;
-  const priceChange = currentLiveQuote?.change ?? Number((displayPrice - prevPrice).toFixed(2));
-  const changePct = currentLiveQuote?.changePct ?? Number(((priceChange / prevPrice) * 100).toFixed(2));
+  const displayPrice = Number(currentLiveQuote?.price || lastCandle?.close || 2985.50);
+  const prevPrice = Number(lastCandle ? lastCandle.open : displayPrice);
+  const priceChange = currentLiveQuote?.change !== undefined ? Number(currentLiveQuote.change) : Number((displayPrice - prevPrice).toFixed(2));
+  const changePct = currentLiveQuote?.changePct !== undefined ? Number(currentLiveQuote.changePct) : Number(((priceChange / (prevPrice || 1)) * 100).toFixed(2));
   const isPositive = priceChange >= 0;
 
   // Active forecasts (prefer real-time socket forecasts if available)
@@ -241,8 +241,8 @@ export const Dashboard: React.FC = () => {
 
           {[1, 5, 15].map((h) => {
             const fc = activeForecasts.find((f) => f.horizonMinutes === h);
-            const anchor = fc?.anchorPrice || displayPrice;
-            const pred = fc?.predictedPrice || displayPrice;
+            const anchor = Number(fc?.anchorPrice || displayPrice || 1);
+            const pred = Number(fc?.predictedPrice || displayPrice || 0);
             const driftPct = Number((((pred - anchor) / anchor) * 100).toFixed(2));
             const isUp = driftPct >= 0;
 
@@ -330,9 +330,9 @@ export const Dashboard: React.FC = () => {
             <tbody className="divide-y divide-slate-800/60">
               {userWatchlist.map((item) => {
                 const liveQ = quotes[item.symbol];
-                const p = liveQ?.price || item.price;
-                const ch = liveQ?.change ?? item.change;
-                const chPct = liveQ?.changePct ?? item.changePct;
+                const p = Number(liveQ?.price ?? item.price ?? 0);
+                const ch = Number(liveQ?.change ?? item.change ?? 0);
+                const chPct = Number(liveQ?.changePct ?? item.changePct ?? 0);
                 const isPos = ch >= 0;
 
                 return (

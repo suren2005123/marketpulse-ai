@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useSocket } from '../context/SocketContext.js';
 import { CandlestickChart } from '../components/charts/CandlestickChart.js';
@@ -18,6 +18,8 @@ import {
 
 export const StockDetail: React.FC = () => {
   const { symbol = 'RELIANCE' } = useParams<{ symbol: string }>();
+  const [searchParams] = useSearchParams();
+  const exchangeParam = (searchParams.get('exchange') || 'NSE').toUpperCase();
   const { socket, quotes, latestForecasts, reconnectCount, feedStatus } = useSocket();
 
   const [candles, setCandles] = useState<Candle[]>([]);
@@ -45,10 +47,10 @@ export const StockDetail: React.FC = () => {
       try {
         setLoading(true);
         const [quoteRes, candleRes, fcRes, histRes] = await Promise.all([
-          api.get(`/api/market/NSE/${symbol}/quote`),
-          api.get(`/api/market/NSE/${symbol}/candles?limit=100`),
-          api.get(`/api/forecasts/NSE/${symbol}`),
-          api.get(`/api/forecasts/NSE/${symbol}/history`),
+          api.get(`/api/market/${exchangeParam}/${symbol}/quote`),
+          api.get(`/api/market/${exchangeParam}/${symbol}/candles?limit=100`),
+          api.get(`/api/forecasts/${exchangeParam}/${symbol}`),
+          api.get(`/api/forecasts/${exchangeParam}/${symbol}/history`),
         ]);
 
         if (isMounted) {

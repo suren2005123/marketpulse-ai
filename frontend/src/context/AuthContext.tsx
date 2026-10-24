@@ -6,6 +6,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
+  initError: string | null;
+  retryInit: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -17,29 +19,55 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [initError, setInitError] = useState<string | null>(null);
 
   const refreshSession = async (): Promise<boolean> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
     try {
       const res = await fetch('/api/auth/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (res.ok) {
         const data = await res.json();
         setAccessToken(data.accessToken);
         setUser(data.user);
+        setInitError(null);
         return true;
       } else {
         setAccessToken(null);
         setUser(null);
+        setInitError(null);
         return false;
       }
-    } catch (err) {
+    } catch (err: any) {
+      clearTimeout(timeoutId);
       setAccessToken(null);
       setUser(null);
+      if (err.name === 'AbortError') {
+        setInitError('Connection timed out while reaching backend service on port 5000.');
+      } else if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
+        setInitError('Unable to connect to backend service at http://localhost:5000. Please ensure the backend server is active.');
+      } else {
+        setInitError(err.message || 'Session initialization failed unexpectedly.');
+      }
       return false;
+    }
+  };
+
+  const retryInit = async (): Promise<void> => {
+    setLoading(true);
+    setInitError(null);
+    try {
+      await refreshSession();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -48,10 +76,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
     });
 
+    let didCancel = false;
+    // Hard safety timeout: guaranteed release from loading state under any scenario
+    const safetyTimer = setTimeout(() => {
+      if (!didCancel) {
+        setLoading(false);
+      }
+    }, 7000);
+
     // Silent refresh on app load
     refreshSession().finally(() => {
-      setLoading(false);
+      if (!didCancel) {
+        clearTimeout(safetyTimer);
+        setLoading(false);
+      }
     });
+
+    return () => {
+      didCancel = true;
+      clearTimeout(safetyTimer);
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
@@ -83,6 +127,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         isAuthenticated: !!user,
+        initError,
+        retryInit,
         login,
         register,
         logout,

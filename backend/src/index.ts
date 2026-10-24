@@ -99,7 +99,7 @@ async function bootstrap() {
   });
 
   // Start Server
-  server.listen(config.port, () => {
+  server.listen(config.port, '0.0.0.0', () => {
     console.log('=============================================================');
     console.log(` MarketPulse AI Backend running on http://localhost:${config.port}`);
     console.log(` Mode: ${config.appMode} | Real-Time Latency Budget: ${config.latencyBudgetMs}ms`);

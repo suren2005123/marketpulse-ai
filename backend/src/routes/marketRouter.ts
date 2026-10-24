@@ -42,12 +42,27 @@ marketRouter.get('/instruments/catalogue', (req: Request, res: Response): void =
     const pm = getProviderManager();
     const activeMode = pm?.getCurrentMode?.() || config.appMode;
 
+    const neededIds = new Set(result.data.filter(i => !(i.price !== undefined && i.price > 0)).map(i => i.id));
+    const candlesByInst = new Map<string, any[]>();
+    if (neededIds.size > 0 && Array.isArray(db.store?.market_candles)) {
+      for (const c of db.store.market_candles) {
+        if (neededIds.has(c.instrument_id)) {
+          let list = candlesByInst.get(c.instrument_id);
+          if (!list) {
+            list = [];
+            candlesByInst.set(c.instrument_id, list);
+          }
+          list.push(c);
+        }
+      }
+    }
+
     const enrichedData = result.data.map(inst => {
       if (inst.price !== undefined && inst.price > 0) {
         return inst;
       }
-      const candles = db.store.market_candles.filter(c => c.instrument_id === inst.id);
-      if (candles.length > 0) {
+      const candles = candlesByInst.get(inst.id);
+      if (candles && candles.length > 0) {
         const sorted = [...candles].sort((a, b) => new Date(b.candle_start).getTime() - new Date(a.candle_start).getTime());
         const latest = sorted[0];
         const prev = sorted[1] || latest;
@@ -125,15 +140,19 @@ marketRouter.get('/market/:exchange/:symbol/quote', async (req: Request, res: Re
     let inst = db.store.instruments.find(
       i => i.symbol.toUpperCase() === symbol.toUpperCase() && i.exchange.toUpperCase() === exchange.toUpperCase()
     );
+    if (!inst) {
+      inst = db.store.instruments.find(i => i.symbol.toUpperCase() === symbol.toUpperCase());
+    }
+    const resolvedExchange = inst ? inst.exchange : exchange.toUpperCase();
 
     // If in END_OF_DAY mode or provider is TejHQ, query genuine data
     if (activeMode === 'END_OF_DAY' || config.provider.name.toLowerCase() === 'tejhq') {
       const tejhq = providerManager?.getTejHQAdapter();
       if (tejhq) {
-        const tejQuote = await tejhq.getQuote(exchange, symbol);
+        const tejQuote = await tejhq.getQuote(resolvedExchange, symbol);
         if (tejQuote) {
           // Ensure instrument exists in DB for watchlist and alert relations
-          const instId = inst?.id || `inst-${exchange.toLowerCase()}-${symbol.toLowerCase()}`;
+          const instId = inst?.id || `inst-${resolvedExchange.toLowerCase()}-${symbol.toLowerCase()}`;
           await db.upsertInstrument({
             id: instId,
             exchange: tejQuote.exchange,
@@ -227,16 +246,20 @@ marketRouter.get('/market/:exchange/:symbol/candles', async (req: Request, res: 
     let inst = db.store.instruments.find(
       i => i.symbol.toUpperCase() === symbol.toUpperCase() && i.exchange.toUpperCase() === exchange.toUpperCase()
     );
+    if (!inst) {
+      inst = db.store.instruments.find(i => i.symbol.toUpperCase() === symbol.toUpperCase());
+    }
+    const resolvedExchange = inst ? inst.exchange : exchange.toUpperCase();
 
     // If in END_OF_DAY mode or provider is TejHQ, fetch genuine historical OHLCV
     if (activeMode === 'END_OF_DAY' || config.provider.name.toLowerCase() === 'tejhq') {
       const tejhq = providerManager?.getTejHQAdapter();
       if (tejhq) {
-        const candles = await tejhq.getCandles(exchange, symbol, limit);
+        const candles = await tejhq.getCandles(resolvedExchange, symbol, limit);
         if (candles && candles.length > 0) {
-          const instId = inst?.id || `inst-${exchange.toLowerCase()}-${symbol.toLowerCase()}`;
+          const instId = inst?.id || `inst-${resolvedExchange.toLowerCase()}-${symbol.toLowerCase()}`;
           // Asynchronously persist candles with unique constraint
-          tejhq.syncCandlesToDatabase(exchange, symbol, instId, 50).catch(() => {});
+          tejhq.syncCandlesToDatabase(resolvedExchange, symbol, instId, 50).catch(() => {});
 
           res.json({
             success: true,

@@ -483,7 +483,7 @@ export const AllStocks: React.FC = () => {
                 return (
                   <tr
                     key={`${inst.exchange}-${inst.symbol}`}
-                    onClick={() => navigate(`/stocks/${inst.symbol}`)}
+                    onClick={() => navigate(`/stocks/${inst.symbol}?exchange=${inst.exchange}`)}
                     className="hover:bg-slate-800/40 cursor-pointer transition-colors group"
                   >
                     {/* Watchlist Star Button */}
@@ -573,7 +573,7 @@ export const AllStocks: React.FC = () => {
                     {/* View Button */}
                     <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={() => navigate(`/stocks/${inst.symbol}`)}
+                        onClick={() => navigate(`/stocks/${inst.symbol}?exchange=${inst.exchange}`)}
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/20 text-[11px] font-semibold transition-all"
                       >
                         <span>Inspect</span>

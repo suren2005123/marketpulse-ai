@@ -7,9 +7,12 @@ export const forecastsRouter = Router();
 forecastsRouter.get('/forecasts/:exchange/:symbol', (req: Request, res: Response): void => {
   try {
     const { symbol, exchange } = req.params;
-    const inst = db.store.instruments.find(
+    let inst = db.store.instruments.find(
       i => i.symbol.toUpperCase() === symbol.toUpperCase() && i.exchange.toUpperCase() === exchange.toUpperCase()
     );
+    if (!inst) {
+      inst = db.store.instruments.find(i => i.symbol.toUpperCase() === symbol.toUpperCase());
+    }
 
     if (!inst) {
       res.status(404).json({ error: `Instrument ${exchange}:${symbol} not found.` });
@@ -53,9 +56,12 @@ forecastsRouter.get('/forecasts/:exchange/:symbol', (req: Request, res: Response
 forecastsRouter.get('/forecasts/:exchange/:symbol/history', (req: Request, res: Response): void => {
   try {
     const { symbol, exchange } = req.params;
-    const inst = db.store.instruments.find(
+    let inst = db.store.instruments.find(
       i => i.symbol.toUpperCase() === symbol.toUpperCase() && i.exchange.toUpperCase() === exchange.toUpperCase()
     );
+    if (!inst) {
+      inst = db.store.instruments.find(i => i.symbol.toUpperCase() === symbol.toUpperCase());
+    }
 
     if (!inst) {
       res.status(404).json({ error: `Instrument ${exchange}:${symbol} not found.` });
@@ -101,9 +107,12 @@ forecastsRouter.get('/forecasts/:exchange/:symbol/history', (req: Request, res: 
 forecastsRouter.get('/forecasts/:exchange/:symbol/performance', (req: Request, res: Response): void => {
   try {
     const { symbol, exchange } = req.params;
-    const inst = db.store.instruments.find(
+    let inst = db.store.instruments.find(
       i => i.symbol.toUpperCase() === symbol.toUpperCase() && i.exchange.toUpperCase() === exchange.toUpperCase()
     );
+    if (!inst) {
+      inst = db.store.instruments.find(i => i.symbol.toUpperCase() === symbol.toUpperCase());
+    }
 
     if (!inst) {
       res.status(404).json({ error: `Instrument ${exchange}:${symbol} not found.` });

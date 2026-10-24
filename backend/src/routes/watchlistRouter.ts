@@ -29,8 +29,8 @@ watchlistRouter.get('/watchlist', (req: AuthenticatedRequest, res: Response): vo
 
       const latest = candles[0];
       const prev = candles[1] || latest;
-      const price = latest ? latest.close : 1000;
-      const prevPrice = prev ? prev.close : price;
+      const price = latest ? Number(latest.close) : 1000;
+      const prevPrice = prev ? Number(prev.close) : price;
       const change = Number((price - prevPrice).toFixed(2));
       const changePct = Number(((change / prevPrice) * 100).toFixed(2));
 
@@ -43,7 +43,7 @@ watchlistRouter.get('/watchlist', (req: AuthenticatedRequest, res: Response): vo
         price,
         change,
         changePct,
-        volume: latest ? latest.volume : 0,
+        volume: latest ? Number(latest.volume) : 0,
         addedAt: w.added_at,
         sourceMode: latest ? latest.source_mode : 'SIMULATED',
       };
