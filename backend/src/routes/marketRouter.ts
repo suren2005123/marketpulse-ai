@@ -2,17 +2,80 @@ import { Router, Request, Response } from 'express';
 import { db } from '../db/index.js';
 import { config } from '../config/index.js';
 import { getProviderManager } from './systemRouter.js';
+import { catalogueService } from '../modules/market/catalogueService.js';
 
 export const marketRouter = Router();
 
-// GET /api/instruments
-marketRouter.get('/instruments', (req: Request, res: Response) => {
+// GET /api/instruments/catalogue (Search, Filter, Sort, Paginate over all NSE/BSE equities)
+marketRouter.get('/instruments/catalogue', (req: Request, res: Response): void => {
   try {
-    const instruments = db.store.instruments.filter(i => i.active);
+    const {
+      search = '',
+      exchange = 'ALL',
+      sector = 'ALL',
+      sortBy = 'symbol',
+      sortOrder = 'asc',
+      page = '1',
+      limit = '25',
+    } = req.query;
+
+    const validSortFields = ['symbol', 'name', 'exchange', 'price', 'changePct', 'volume'];
+    const chosenSortBy = validSortFields.includes(String(sortBy)) ? String(sortBy) : 'symbol';
+    const chosenSortOrder = String(sortOrder).toLowerCase() === 'desc' ? 'desc' : 'asc';
+
+    const pageNum = parseInt(String(page), 10);
+    const limitNum = parseInt(String(limit), 10);
+
+    const safePage = isNaN(pageNum) || pageNum < 1 ? 1 : pageNum;
+    const safeLimit = isNaN(limitNum) || limitNum < 1 ? 25 : Math.min(limitNum, 100);
+
+    const result = catalogueService.search({
+      search: String(search),
+      exchange: String(exchange).toUpperCase() as any,
+      sector: String(sector),
+      sortBy: chosenSortBy as any,
+      sortOrder: chosenSortOrder,
+      page: safePage,
+      limit: safeLimit,
+    });
+
     res.json({
       success: true,
-      count: instruments.length,
-      data: instruments,
+      data: result.data,
+      pagination: result.pagination,
+      stats: result.stats,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to retrieve instrument catalogue' });
+  }
+});
+
+// POST /api/instruments/refresh (Trigger manual catalogue refresh from official Upstox masters)
+marketRouter.post('/instruments/refresh', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await catalogueService.syncFullCatalogue();
+    res.json({
+      success: true,
+      message: `Successfully synchronized ${result.total} instruments from official masters.`,
+      stats: result,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to refresh catalogue' });
+  }
+});
+
+// GET /api/instruments (Legacy/General listing)
+marketRouter.get('/instruments', (req: Request, res: Response) => {
+  try {
+    const limitParam = req.query.limit ? parseInt(String(req.query.limit), 10) : undefined;
+    const allInstruments = db.store.instruments.filter(i => i.active);
+    const data = limitParam ? allInstruments.slice(0, limitParam) : allInstruments;
+
+    res.json({
+      success: true,
+      count: data.length,
+      totalCount: allInstruments.length,
+      data,
     });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to retrieve instruments' });

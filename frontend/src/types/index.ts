@@ -16,7 +16,45 @@ export interface Instrument {
   name: string;
   sector?: string;
   provider_instrument_key?: string;
+  isin?: string;
   active: boolean;
+  price?: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
+  prevClose?: number;
+  change?: number;
+  changePct?: number;
+  volume?: number;
+  tradingDate?: string;
+  sourceMode?: SourceMode;
+  freshness?: string;
+}
+
+export interface CataloguePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  exchange: string;
+  search: string;
+  sortBy: string;
+  sortOrder: string;
+}
+
+export interface CatalogueStats {
+  totalInstruments: number;
+  nseCount: number;
+  bseCount: number;
+  lastRefreshedAt: string | null;
+}
+
+export interface CatalogueResponse {
+  success: boolean;
+  data: Instrument[];
+  pagination: CataloguePagination;
+  stats: CatalogueStats;
 }
 
 export interface MarketQuote {

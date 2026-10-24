@@ -10,6 +10,7 @@ import { seedDatabase } from './db/seed.js';
 import { CandleAggregator } from './modules/market/candleAggregator.js';
 import { RealtimeGateway } from './realtime/socketGateway.js';
 import { ProviderManager } from './modules/provider/providerManager.js';
+import { catalogueService } from './modules/market/catalogueService.js';
 
 import { authRouter } from './modules/auth/authRouter.js';
 import { marketRouter } from './routes/marketRouter.js';
@@ -54,6 +55,9 @@ async function bootstrap() {
     console.log('[Bootstrap] Initializing and seeding database...');
     await seedDatabase();
   }
+
+  // 1b. Initialize Instrument Catalogue from cache / master
+  await catalogueService.initializeFromDatabase();
 
   // 2. Initialize Candle Aggregator & Latency Monitor
   const candleAggregator = new CandleAggregator();
