@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
-  const { quotes, latestForecasts, reconnectCount, feedStatus, latency } = useSocket();
+  const { socket, quotes, latestForecasts, reconnectCount, feedStatus, latency } = useSocket();
 
   const [selectedSymbol, setSelectedSymbol] = useState<string>('RELIANCE');
   const [instruments, setInstruments] = useState<Instrument[]>([]);
@@ -25,6 +25,22 @@ export const Dashboard: React.FC = () => {
   const [userWatchlist, setUserWatchlist] = useState<any[]>([]);
   const [userAlerts, setUserAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // Progressive live subscription for dashboard instruments and watchlist
+  useEffect(() => {
+    if (!socket) return;
+    const symbolsToSub = new Set<string>();
+    if (selectedSymbol) symbolsToSub.add(selectedSymbol);
+    for (const inst of instruments.slice(0, 10)) {
+      symbolsToSub.add(inst.symbol);
+    }
+    for (const w of userWatchlist) {
+      if (w.symbol) symbolsToSub.add(w.symbol);
+    }
+    if (symbolsToSub.size > 0) {
+      socket.emit('subscribe:instruments', Array.from(symbolsToSub));
+    }
+  }, [socket, selectedSymbol, instruments, userWatchlist]);
 
   // Fetch initial REST data & on reconnect
   useEffect(() => {

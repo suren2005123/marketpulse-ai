@@ -97,6 +97,9 @@ export class ProviderManager extends EventEmitter implements IMarketDataProvider
     if (this.currentProvider === this.tejhqAdapter) {
       return this.tejhqAdapter.getDetailedStatus();
     }
+    if (this.currentProvider === this.upstoxAdapter) {
+      return this.upstoxAdapter.getDetailedStatus();
+    }
     return {
       ...this.currentProvider.getStatus(),
       tradingDate: null,
@@ -114,6 +117,10 @@ export class ProviderManager extends EventEmitter implements IMarketDataProvider
 
   getTejHQAdapter(): TejHQAdapter {
     return this.tejhqAdapter;
+  }
+
+  getUpstoxAdapter(): UpstoxV3Adapter {
+    return this.upstoxAdapter;
   }
 
   getCurrentMode(): SourceMode {

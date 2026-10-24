@@ -61,6 +61,7 @@ export interface CatalogueQueryResult {
 
 class CatalogueService {
   private instruments: Map<string, CatalogueInstrument> = new Map();
+  private instrumentsByKey: Map<string, CatalogueInstrument> = new Map();
   private lastRefreshedAt: string | null = null;
   private isRefreshing = false;
 
@@ -302,6 +303,9 @@ class CatalogueService {
         // Store into in-memory map
         for (const inst of allCombined) {
           this.instruments.set(this.getCompositeKey(inst.exchange, inst.symbol), inst);
+          if (inst.provider_instrument_key) {
+            this.instrumentsByKey.set(inst.provider_instrument_key, inst);
+          }
         }
 
         // Persist to PostgreSQL in background
@@ -345,7 +349,7 @@ class CatalogueService {
     const existing = db.store.instruments;
     if (existing && existing.length > 0) {
       for (const inst of existing) {
-        this.instruments.set(this.getCompositeKey(inst.exchange, inst.symbol), {
+        const itemObj: CatalogueInstrument = {
           id: inst.id,
           exchange: inst.exchange as 'NSE' | 'BSE',
           symbol: inst.symbol,
@@ -354,7 +358,11 @@ class CatalogueService {
           provider_instrument_key: inst.provider_instrument_key || `${inst.exchange}_EQ|${inst.symbol}`,
           isin: inst.provider_instrument_key?.split('|')[1] || '',
           active: inst.active !== false,
-        });
+        };
+        this.instruments.set(this.getCompositeKey(inst.exchange, inst.symbol), itemObj);
+        if (itemObj.provider_instrument_key) {
+          this.instrumentsByKey.set(itemObj.provider_instrument_key, itemObj);
+        }
       }
       this.lastRefreshedAt = new Date().toISOString();
       console.log(`[Catalogue Service] Initialized ${this.instruments.size} instruments from persistent cache.`);
@@ -474,6 +482,10 @@ class CatalogueService {
     return this.instruments.get(this.getCompositeKey(exchange, symbol)) || null;
   }
 
+  getInstrumentByKey(key: string): CatalogueInstrument | null {
+    return this.instrumentsByKey.get(key) || null;
+  }
+
   getCountByExchange(exchange: 'NSE' | 'BSE'): number {
     let count = 0;
     for (const inst of this.instruments.values()) {
@@ -493,8 +505,12 @@ class CatalogueService {
   // Unit-test helper to inject mock data without network calls
   loadMockInstruments(instruments: CatalogueInstrument[]): void {
     this.instruments.clear();
+    this.instrumentsByKey.clear();
     for (const inst of instruments) {
       this.instruments.set(this.getCompositeKey(inst.exchange, inst.symbol), inst);
+      if (inst.provider_instrument_key) {
+        this.instrumentsByKey.set(inst.provider_instrument_key, inst);
+      }
     }
     this.lastRefreshedAt = new Date().toISOString();
   }

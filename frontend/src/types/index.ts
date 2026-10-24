@@ -163,4 +163,12 @@ export interface FeedStatusData {
     p95: number;
     current: number;
   };
+  hasToken?: boolean;
+  accountStatus?: 'ACTIVE' | 'ACCOUNT_UNDER_REVIEW' | 'TOKEN_EXPIRED' | 'DISCONNECTED' | 'UNCONFIGURED';
+  actionableMessage?: string;
+  subscriptionCount?: number;
+  subscriptionLimit?: number;
+  activeSubscriptions?: string[];
+  tradingDate?: string | null;
+  lastPublishedIst?: string | null;
 }

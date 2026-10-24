@@ -18,13 +18,20 @@ import {
 
 export const StockDetail: React.FC = () => {
   const { symbol = 'RELIANCE' } = useParams<{ symbol: string }>();
-  const { quotes, latestForecasts, reconnectCount, feedStatus } = useSocket();
+  const { socket, quotes, latestForecasts, reconnectCount, feedStatus } = useSocket();
 
   const [candles, setCandles] = useState<Candle[]>([]);
   const [forecasts, setForecasts] = useState<Forecast[]>([]);
   const [history, setHistory] = useState<ForecastHistoryItem[]>([]);
   const [quoteDetails, setQuoteDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Progressive live subscription for current stock
+  useEffect(() => {
+    if (socket && symbol) {
+      socket.emit('subscribe:instruments', [symbol]);
+    }
+  }, [socket, symbol]);
 
   // New Alert modal state
   const [showAlertModal, setShowAlertModal] = useState(false);

@@ -23,7 +23,7 @@ export const Navbar: React.FC = () => {
 
   const currentMode = feedStatus?.mode || 'SIMULATED';
 
-  const handleSwitchMode = async (mode: 'SIMULATED' | 'HISTORICAL_REPLAY' | 'LIVE', speed = 5) => {
+  const handleSwitchMode = async (mode: 'SIMULATED' | 'HISTORICAL_REPLAY' | 'LIVE' | 'END_OF_DAY', speed = 5) => {
     try {
       setSwitchingMode(true);
       await api.post('/api/system/set-mode', { mode, replaySpeed: speed });
@@ -38,10 +38,33 @@ export const Navbar: React.FC = () => {
   const getModeBadge = () => {
     switch (currentMode) {
       case 'LIVE':
+        if (feedStatus?.connected) {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              LIVE (Upstox V3)
+            </span>
+          );
+        }
+        if (feedStatus?.accountStatus === 'ACCOUNT_UNDER_REVIEW') {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              UPSTOX UNDER REVIEW
+            </span>
+          );
+        }
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-            LIVE FEED
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/30">
+            <WifiOff className="w-3 h-3 text-rose-400" />
+            LIVE (DISCONNECTED)
+          </span>
+        );
+      case 'END_OF_DAY':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
+            <Clock className="w-3 h-3 text-indigo-400" />
+            END OF DAY (TejHQ)
           </span>
         );
       case 'HISTORICAL_REPLAY':
@@ -240,6 +263,32 @@ export const Navbar: React.FC = () => {
                 </div>
                 <p className="text-xs text-slate-400">
                   Replays recorded historical candles while preserving relative timestamps. Useful for walk-forward testing.
+                </p>
+              </button>
+
+              {/* End of Day (TejHQ Bhavcopy) */}
+              <button
+                disabled={switchingMode}
+                onClick={() => handleSwitchMode('END_OF_DAY')}
+                className={`w-full p-4 rounded-xl border text-left transition-all ${
+                  currentMode === 'END_OF_DAY'
+                    ? 'border-indigo-500/80 bg-indigo-950/20'
+                    : 'border-slate-800 hover:border-slate-700 bg-slate-900/40'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-indigo-400" />
+                    END OF DAY (TejHQ Bhavcopy)
+                  </span>
+                  {currentMode === 'END_OF_DAY' && (
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-900/60 text-indigo-300 font-mono">
+                      ACTIVE
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400">
+                  Daily closing bhavcopy snapshots from TejHQ covering 5,500+ NSE & BSE stocks. Genuine free EOD market data.
                 </p>
               </button>
 

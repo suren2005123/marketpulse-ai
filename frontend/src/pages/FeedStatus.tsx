@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Zap,
   Info,
+  Layers,
 } from 'lucide-react';
 
 export const FeedStatus: React.FC = () => {
@@ -47,7 +48,7 @@ export const FeedStatus: React.FC = () => {
             <h2 className="text-xl font-bold text-white tracking-tight">Data Feed & Pipeline Status</h2>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Diagnostic monitoring of market data ingestion, WebSocket connection, and end-to-end latency SLA
+            Diagnostic monitoring of market data ingestion, WebSocket streaming, and end-to-end latency SLA
           </p>
         </div>
 
@@ -57,6 +58,11 @@ export const FeedStatus: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
               Feed Operational
             </span>
+          ) : current?.accountStatus === 'ACCOUNT_UNDER_REVIEW' ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+              Under Review (EOD Fallback)
+            </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/30">
               <WifiOff className="w-3.5 h-3.5" />
@@ -65,6 +71,19 @@ export const FeedStatus: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Account Under Review Alert Banner */}
+      {current?.accountStatus === 'ACCOUNT_UNDER_REVIEW' && (
+        <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-700/50 text-xs text-amber-200 flex items-start gap-3">
+          <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="font-bold text-amber-300">Upstox Account Reactivation Status: Under Review</h4>
+            <p className="leading-relaxed text-amber-200/90">
+              Your broker account reactivation request was submitted and is currently being processed by Upstox. MarketPulse AI maintains data integrity by running with genuine <strong>TejHQ End-Of-Day Bhavcopy</strong> data as the safe fallback. Real-time live status will automatically engage upon approval.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Latency Budget Verification Card */}
       <div className="p-5 rounded-2xl glass-card border border-cyan-500/30 glow-cyan">
@@ -105,8 +124,9 @@ export const FeedStatus: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Box 1: Provider Status */}
         <div className="p-5 rounded-2xl glass-card border border-slate-800 space-y-4">
-          <h3 className="text-sm font-bold text-white border-b border-slate-800 pb-2">
-            Ingestion Provider Specification
+          <h3 className="text-sm font-bold text-white border-b border-slate-800 pb-2 flex items-center justify-between">
+            <span>Ingestion Provider Specification</span>
+            <span className="text-xs font-mono text-cyan-400">{current?.provider || 'Deterministic Engine'}</span>
           </h3>
 
           <div className="space-y-3 text-xs font-mono">
@@ -127,7 +147,13 @@ export const FeedStatus: React.FC = () => {
             <div className="flex items-center justify-between">
               <span className="text-slate-400">Staleness Detection:</span>
               <span className={current?.stale ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
-                {current?.stale ? 'STALE (Over 15s elapsed)' : 'FRESH'}
+                {current?.stale ? 'STALE (>15s elapsed)' : 'FRESH'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Active Subscriptions:</span>
+              <span className="text-cyan-300 font-bold">
+                {current?.subscriptionCount !== undefined ? `${current.subscriptionCount} / ${current.subscriptionLimit || 100} instruments` : 'Global Broadcast'}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -140,7 +166,7 @@ export const FeedStatus: React.FC = () => {
         {/* Box 2: Timestamps and Errors */}
         <div className="p-5 rounded-2xl glass-card border border-slate-800 space-y-4">
           <h3 className="text-sm font-bold text-white border-b border-slate-800 pb-2">
-            Timestamps & Fault Tolerance
+            Timestamps (Asia/Kolkata IST) & Fault Tolerance
           </h3>
 
           <div className="space-y-3 text-xs font-mono">
@@ -169,8 +195,8 @@ export const FeedStatus: React.FC = () => {
               <span className="text-slate-200">{current?.reconnectAttempts || 0}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Fan-Out Layer:</span>
-              <span className="text-purple-400 font-bold">Redis Pub/Sub Adapter</span>
+              <span className="text-slate-400">Fan-Out Architecture:</span>
+              <span className="text-purple-400 font-bold">Redis Pub/Sub Gateway</span>
             </div>
           </div>
         </div>
@@ -183,13 +209,13 @@ export const FeedStatus: React.FC = () => {
           Upstox V3 Live Integration Instructions
         </h3>
         <p className="text-xs text-slate-400 leading-relaxed mb-3">
-          MarketPulse AI strictly separates data sources. To switch from SIMULATED to LIVE feed:
+          MarketPulse AI strictly separates data sources. To stream live prices via Upstox V3:
         </p>
         <ol className="list-decimal list-inside text-xs text-slate-300 space-y-1 font-mono">
-          <li>Create an authorized developer account on <a href="https://upstox.com/developer/api-documentation/v3/" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Upstox Developer Portal</a>.</li>
-          <li>Set <span className="text-cyan-300">UPSTOX_CLIENT_ID</span> and <span className="text-cyan-300">UPSTOX_CLIENT_SECRET</span> in your environment.</li>
-          <li>Generate an active access token and set <span className="text-cyan-300">UPSTOX_ACCESS_TOKEN</span> in <span className="text-slate-400">.env</span>.</li>
-          <li>Switch data mode to LIVE in the top navigation bar.</li>
+          <li>Create an authorized app in the <a href="https://upstox.com/developer/api-documentation/v3/" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Upstox Developer Console</a>.</li>
+          <li>Set Redirect URL to <span className="text-cyan-300 font-bold">http://localhost:5000/api/provider/upstox/callback</span>.</li>
+          <li>Enter your <span className="text-cyan-300">UPSTOX_CLIENT_ID</span> and <span className="text-cyan-300">UPSTOX_CLIENT_SECRET</span> in backend <span className="text-slate-400">.env</span>.</li>
+          <li>Click <span className="text-white font-semibold">"Connect Upstox Account"</span> in Settings to initiate OAuth login.</li>
         </ol>
       </div>
     </div>

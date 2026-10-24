@@ -18,6 +18,7 @@ import { forecastsRouter } from './routes/forecastsRouter.js';
 import { alertsRouter } from './routes/alertsRouter.js';
 import { watchlistRouter } from './routes/watchlistRouter.js';
 import { systemRouter, setProviderManager } from './routes/systemRouter.js';
+import { providerRouter } from './routes/providerRouter.js';
 
 async function bootstrap() {
   const app = express();
@@ -78,6 +79,7 @@ async function bootstrap() {
   app.use('/api', forecastsRouter);
   app.use('/api', alertsRouter);
   app.use('/api', watchlistRouter);
+  app.use('/api', providerRouter);
 
   // 404 Route Handler
   app.use((req: Request, res: Response) => {

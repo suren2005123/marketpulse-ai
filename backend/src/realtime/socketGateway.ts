@@ -114,6 +114,12 @@ export class RealtimeGateway {
         }
       });
 
+      socket.on('unsubscribe:instruments', (symbols: string[]) => {
+        if (Array.isArray(symbols) && this.activeProvider) {
+          this.activeProvider.unsubscribe(symbols);
+        }
+      });
+
       // Handle client-reported latency echo (for measuring true round-trip screen delivery)
       socket.on('latency:ping', (timestamp: number) => {
         socket.emit('latency:pong', timestamp);
