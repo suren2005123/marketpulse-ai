@@ -16,6 +16,7 @@ dist/
 *.sqlite-journal
 *.sqlite3
 *.db
+*marketpulse_db.json
 
 # Logs
 *.log
