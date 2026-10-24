@@ -9,6 +9,9 @@ import { Login } from './pages/Login.js';
 import { SignUp } from './pages/SignUp.js';
 import { Dashboard } from './pages/Dashboard.js';
 import { StockExplorer } from './pages/StockExplorer.js';
+import { AllStocks } from './pages/AllStocks.js';
+import { AnomalyRadar } from './pages/AnomalyRadar.js';
+import { MarketInvestigator } from './pages/MarketInvestigator.js';
 import { StockDetail } from './pages/StockDetail.js';
 import { ForecastPerformance } from './pages/ForecastPerformance.js';
 import { Alerts } from './pages/Alerts.js';
@@ -36,6 +39,11 @@ export const App: React.FC = () => {
             >
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/stocks" element={<AllStocks />} />
+              <Route path="/all-stocks" element={<AllStocks />} />
+              <Route path="/radar" element={<AnomalyRadar />} />
+              <Route path="/investigator" element={<MarketInvestigator />} />
+              <Route path="/investigate" element={<MarketInvestigator />} />
               <Route path="/explorer" element={<StockExplorer />} />
               <Route path="/stocks/:symbol" element={<StockDetail />} />
               <Route path="/performance" element={<ForecastPerformance />} />

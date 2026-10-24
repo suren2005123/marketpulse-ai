@@ -39,9 +39,42 @@ marketRouter.get('/instruments/catalogue', (req: Request, res: Response): void =
       limit: safeLimit,
     });
 
+    const pm = getProviderManager();
+    const activeMode = pm?.getCurrentMode?.() || config.appMode;
+
+    const enrichedData = result.data.map(inst => {
+      if (inst.price !== undefined && inst.price > 0) {
+        return inst;
+      }
+      const candles = db.store.market_candles.filter(c => c.instrument_id === inst.id);
+      if (candles.length > 0) {
+        const sorted = [...candles].sort((a, b) => new Date(b.candle_start).getTime() - new Date(a.candle_start).getTime());
+        const latest = sorted[0];
+        const prev = sorted[1] || latest;
+        const change = Number((latest.close - prev.close).toFixed(2));
+        const changePct = prev.close > 0 ? Number(((change / prev.close) * 100).toFixed(2)) : 0;
+        return {
+          ...inst,
+          price: latest.close,
+          open: latest.open,
+          high: latest.high,
+          low: latest.low,
+          close: latest.close,
+          prevClose: prev.close,
+          change,
+          changePct,
+          volume: latest.volume,
+          sourceMode: latest.source_mode || activeMode,
+          freshness: latest.source_mode || activeMode,
+          tradingDate: latest.candle_start?.split('T')[0],
+        };
+      }
+      return inst;
+    });
+
     res.json({
       success: true,
-      data: result.data,
+      data: enrichedData,
       pagination: result.pagination,
       stats: result.stats,
     });

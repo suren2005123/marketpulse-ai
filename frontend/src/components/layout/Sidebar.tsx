@@ -2,6 +2,9 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Database,
+  Radar,
+  Sparkles,
   Compass,
   LineChart,
   Award,
@@ -13,6 +16,9 @@ import {
 
 const NAV_ITEMS = [
   { path: '/', label: 'Overview Dashboard', icon: LayoutDashboard },
+  { path: '/stocks', label: 'All Stocks', icon: Database },
+  { path: '/radar', label: 'Anomaly Radar', icon: Radar },
+  { path: '/investigator', label: 'Move Investigator', icon: Sparkles },
   { path: '/explorer', label: 'Stock Explorer', icon: Compass },
   { path: '/stocks/RELIANCE', label: 'Stock Detail & Chart', icon: LineChart },
   { path: '/performance', label: 'Forecast Performance', icon: Award },

@@ -502,6 +502,87 @@ class CatalogueService {
     return Array.from(this.instruments.values());
   }
 
+  updateInstrumentPrice(
+    exchange: string,
+    symbol: string,
+    quote: {
+      price?: number;
+      open?: number;
+      high?: number;
+      low?: number;
+      close?: number;
+      prevClose?: number;
+      change?: number;
+      changePct?: number;
+      volume?: number;
+      tradingDate?: string;
+      sourceMode?: string;
+      freshness?: string;
+      lastUpdatedIst?: string;
+    }
+  ): void {
+    const inst = this.instruments.get(this.getCompositeKey(exchange, symbol));
+    if (inst) {
+      if (quote.price !== undefined) inst.price = quote.price;
+      if (quote.open !== undefined) inst.open = quote.open;
+      if (quote.high !== undefined) inst.high = quote.high;
+      if (quote.low !== undefined) inst.low = quote.low;
+      if (quote.close !== undefined) inst.close = quote.close;
+      if (quote.prevClose !== undefined) inst.prevClose = quote.prevClose;
+      if (quote.change !== undefined) inst.change = quote.change;
+      if (quote.changePct !== undefined) inst.changePct = quote.changePct;
+      if (quote.volume !== undefined) inst.volume = quote.volume;
+      if (quote.tradingDate !== undefined) inst.tradingDate = quote.tradingDate;
+      if (quote.sourceMode !== undefined) inst.sourceMode = quote.sourceMode;
+      if (quote.freshness !== undefined) inst.freshness = quote.freshness;
+      if (quote.lastUpdatedIst !== undefined) inst.lastUpdatedIst = quote.lastUpdatedIst;
+    }
+  }
+
+  updateFromTejHQSnapshot(exchange: 'NSE' | 'BSE', rows: Array<any>, tradingDate?: string): number {
+    let updated = 0;
+    const nowIst = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(new Date()) + ' IST';
+
+    for (const r of rows) {
+      const sym = r.symbol?.toUpperCase().trim();
+      if (!sym) continue;
+      const inst = this.instruments.get(this.getCompositeKey(exchange, sym));
+      if (inst) {
+        const closePrice = r.close || r.last || 0;
+        const prevPrice = r.prev_close || closePrice;
+        const change = Number((closePrice - prevPrice).toFixed(2));
+        const changePct = prevPrice > 0 ? Number(((change / prevPrice) * 100).toFixed(2)) : 0;
+
+        inst.price = closePrice;
+        inst.open = r.open;
+        inst.high = r.high;
+        inst.low = r.low;
+        inst.close = closePrice;
+        inst.prevClose = prevPrice;
+        inst.change = change;
+        inst.changePct = changePct;
+        inst.volume = r.volume;
+        inst.turnover = r.turnover;
+        inst.trades = r.trades;
+        inst.tradingDate = tradingDate;
+        inst.sourceMode = 'END_OF_DAY';
+        inst.freshness = 'END_OF_DAY';
+        inst.lastUpdatedIst = nowIst;
+        updated++;
+      }
+    }
+    return updated;
+  }
+
   // Unit-test helper to inject mock data without network calls
   loadMockInstruments(instruments: CatalogueInstrument[]): void {
     this.instruments.clear();

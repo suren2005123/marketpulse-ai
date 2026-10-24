@@ -28,6 +28,7 @@ export interface Instrument {
   changePct?: number;
   volume?: number;
   tradingDate?: string;
+  lastUpdatedIst?: string;
   sourceMode?: SourceMode;
   freshness?: string;
 }

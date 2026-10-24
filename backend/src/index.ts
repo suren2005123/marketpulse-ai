@@ -19,6 +19,7 @@ import { alertsRouter } from './routes/alertsRouter.js';
 import { watchlistRouter } from './routes/watchlistRouter.js';
 import { systemRouter, setProviderManager } from './routes/systemRouter.js';
 import { providerRouter } from './routes/providerRouter.js';
+import { radarRouter } from './routes/radarRouter.js';
 
 async function bootstrap() {
   const app = express();
@@ -80,6 +81,8 @@ async function bootstrap() {
   app.use('/api', alertsRouter);
   app.use('/api', watchlistRouter);
   app.use('/api', providerRouter);
+  app.use('/api/radar', radarRouter);
+  app.use('/api', radarRouter);
 
   // 404 Route Handler
   app.use((req: Request, res: Response) => {

@@ -77,6 +77,7 @@ class DatabaseService {
         password: pgPassword,
         ssl: config.db.ssl ? { rejectUnauthorized: false } : undefined,
         connectionTimeoutMillis: 5000,
+        idleTimeoutMillis: 1000,
       };
     }
 
@@ -87,6 +88,7 @@ class DatabaseService {
         password: pgPassword || undefined,
         ssl: config.db.ssl ? { rejectUnauthorized: false } : undefined,
         connectionTimeoutMillis: 5000,
+        idleTimeoutMillis: 1000,
       };
     }
 
@@ -101,6 +103,7 @@ class DatabaseService {
         password: pgPassword,
         ssl: config.db.ssl ? { rejectUnauthorized: false } : undefined,
         connectionTimeoutMillis: 5000,
+        idleTimeoutMillis: 1000,
       };
     }
 

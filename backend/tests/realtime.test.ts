@@ -9,8 +9,6 @@ import { SimulatedAdapter } from '../src/modules/provider/simulatedAdapter.js';
 import { db } from '../src/db/index.js';
 
 test('Real-Time Gateway: Authenticated Sockets and Concurrent Delivery Latency', async (t) => {
-  await db.init();
-
   const server = http.createServer();
   const aggregator = new CandleAggregator();
   const gateway = new RealtimeGateway(server, aggregator);
@@ -41,6 +39,7 @@ test('Real-Time Gateway: Authenticated Sockets and Concurrent Delivery Latency',
     return ClientIO(url, {
       auth: { token: u.token },
       transports: ['websocket'],
+      reconnection: false,
     });
   });
 
@@ -87,7 +86,9 @@ test('Real-Time Gateway: Authenticated Sockets and Concurrent Delivery Latency',
   // Cleanup
   for (const socket of clientSockets) {
     socket.disconnect();
+    socket.close();
   }
   await provider.disconnect();
+  await new Promise<void>((resolve) => gateway.getSocketServer().close(() => resolve()));
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
