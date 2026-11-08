@@ -27,14 +27,15 @@ export interface DetectedAnomaly {
   anomalyType: 'PRICE_SPIKE' | 'VOLUME_SURGE' | 'VOLATILITY_BURST' | 'SECTOR_DIVERGENCE' | 'COMPOSITE';
   primaryReason: string;
   metrics: AnomalyMetricBreakdown;
-  baselinePeriod: string; // e.g. "20-day historical window"
+  baselinePeriod: string; // e.g. "estimated 20-day baseline (daily returns & volume)"
+  baselineIsEstimate?: boolean;
   timestamp: string;
   tradingDate: string;
   sourceMode: string;
   freshness: string;
+  isStale?: boolean;
   isWatchlisted?: boolean;
 }
-
 export interface RadarScanFilter {
   exchange?: 'ALL' | 'NSE' | 'BSE';
   severity?: 'ALL' | 'CRITICAL' | 'ELEVATED' | 'MODERATE';
@@ -45,6 +46,7 @@ export interface RadarScanFilter {
   userWatchlistSymbols?: string[];
   scanMode?: 'EOD' | 'INTRADAY';
 }
+
 
 export interface BacktestResult {
   evaluationDate: string;
@@ -99,10 +101,12 @@ class AnomalyRadarService {
     const totalScore = Math.min(100, Math.round(returnComponent + volumeComponent + volatilityComponent + divergenceComponent));
 
     let severity: 'CRITICAL' | 'ELEVATED' | 'MODERATE' = 'MODERATE';
-    if (totalScore >= 75 || absZ >= 3.5 || volRatio >= 5.0) {
+    if (totalScore >= 80) {
       severity = 'CRITICAL';
-    } else if (totalScore >= 55 || absZ >= 2.5 || volRatio >= 3.0) {
+    } else if (totalScore >= 60) {
       severity = 'ELEVATED';
+    } else {
+      severity = 'MODERATE';
     }
 
     // Determine primary anomaly category
@@ -237,22 +241,34 @@ class AnomalyRadarService {
       // Check min score or severity requirement
       if (score >= (filter.minScore || 40)) {
         if (!filter.severity || filter.severity === 'ALL' || filter.severity === severity) {
+          // Compute deterministic ID allowing multiple anomalies per instrument/date/type
+          const datePart = (inst.tradingDate || new Date().toISOString().split('T')[0]).replace(/-/g, '');
+          const id = `anom-${inst.exchange.toLowerCase()}-${inst.symbol.toLowerCase()}-${anomalyType}-${datePart}`;
+          // Determine freshness and staleness
+          const tradingDt = new Date(inst.tradingDate || new Date().toISOString().split('T')[0]);
+          const now = new Date();
+          const isStale = scanMode === 'EOD' && (now.getTime() - tradingDt.getTime()) > 24 * 60 * 60 * 1000;
+          const freshness = isStale ? 'STALE' : (scanMode === 'INTRADAY' ? 'LIVE' : 'EOD');
+          // Severity already determined by calculateAnomalyScore
+          const newSeverity = severity;
           detected.push({
-            id: `anom-${inst.exchange.toLowerCase()}-${inst.symbol.toLowerCase()}`,
+            id,
             symbol: inst.symbol,
             exchange: inst.exchange,
             name: inst.name,
             sector: inst.sector || 'Equities',
             score,
-            severity,
+            severity: newSeverity,
             anomalyType,
             primaryReason: reason,
             metrics,
-            baselinePeriod: '20-day historical rolling window (daily returns & volume)',
+            baselinePeriod: 'estimated 20‑day baseline (daily returns & volume)',
+            baselineIsEstimate: true,
             timestamp: new Date().toISOString(),
             tradingDate: inst.tradingDate || new Date().toISOString().split('T')[0],
             sourceMode: scanMode === 'INTRADAY' ? 'LIVE' : (inst.sourceMode || 'END_OF_DAY'),
-            freshness: scanMode === 'INTRADAY' ? 'LIVE (Upstox Stream)' : 'EOD (TejHQ Bhavcopy)',
+            freshness,
+            isStale,
             isWatchlisted,
           });
         }

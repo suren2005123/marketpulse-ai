@@ -102,10 +102,17 @@ async function request<T = any>(
 }
 
 export const api = {
+  // Existing methods
   get: <T = any>(endpoint: string) => request<T>(endpoint, { method: 'GET' }),
-  post: <T = any>(endpoint: string, body?: any) =>
-    request<T>(endpoint, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
-  patch: <T = any>(endpoint: string, body?: any) =>
-    request<T>(endpoint, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
+  post: <T = any>(endpoint: string, body?: any) => request<T>(endpoint, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
+  patch: <T = any>(endpoint: string, body?: any) => request<T>(endpoint, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T = any>(endpoint: string) => request<T>(endpoint, { method: 'DELETE' }),
+  // Explain My Stock
+  explainStock: <T = any>(exchange: string, symbol: string, timeframe: string = '15m') => request<T>(`/api/explain/${exchange}/${symbol}?timeframe=${timeframe}`, { method: 'GET' }),
+  // Insights endpoints
+  getMarketOverview: <T = any>(exchange: string = 'ALL') => request<T>(`/api/insights/overview/${exchange}`),
+  getTopMovers: <T = any>(exchange: string = 'ALL', limit: number = 5) => request<T>(`/api/insights/top-movers/${exchange}/${limit}`),
+  getMostActive: <T = any>(exchange: string = 'ALL', limit: number = 5) => request<T>(`/api/insights/most-active/${exchange}/${limit}`),
+  getSectorPerformance: <T = any>(exchange: string = 'ALL') => request<T>(`/api/insights/sector-performance/${exchange}`),
+  getObservations: <T = any>(exchange: string = 'ALL') => request<T>(`/api/insights/observations/${exchange}`),
 };

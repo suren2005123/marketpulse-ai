@@ -20,10 +20,18 @@ import { watchlistRouter } from './routes/watchlistRouter.js';
 import { systemRouter, setProviderManager } from './routes/systemRouter.js';
 import { providerRouter } from './routes/providerRouter.js';
 import { radarRouter } from './routes/radarRouter.js';
+import { insightsRouter } from './routes/insightsRouter.js';
+import { explanationRouter } from './routes/explanationRouter.js';
+import { learningRouter } from './routes/learningRouter.js';
+import { trendRouter } from './routes/trendRouter.js';
 
 async function bootstrap() {
   const app = express();
   const server = http.createServer(app);
+
+  if (config.isProduction) {
+    app.set('trust proxy', 1);
+  }
 
   // Security & standard middlewares
   app.use(helmet({
@@ -82,8 +90,10 @@ async function bootstrap() {
   app.use('/api', watchlistRouter);
   app.use('/api', providerRouter);
   app.use('/api/radar', radarRouter);
-  app.use('/api', radarRouter);
-
+  app.use('/api/insights', insightsRouter);
+  app.use('/api', explanationRouter);
+  app.use('/api', learningRouter);
+  app.use('/api', trendRouter);
   // 404 Route Handler
   app.use((req: Request, res: Response) => {
     res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` });
