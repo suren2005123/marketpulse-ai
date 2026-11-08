@@ -72,18 +72,36 @@ Strict data segregation is enforced across all endpoints, charts, and badges:
 
 ---
 
-## 3. Pre-Seeded Demo Account
+## 3. Pre-Seeded Demo Account & Production Security
 
-Evaluators can sign in immediately using the **One-Click Demo Account Login** button on `/login` or by entering:
+In local development (`NODE_ENV=development`), evaluators can sign in immediately using the **One-Click Demo Account Login** button on `/login` or by entering:
 - **Email**: `demo@marketpulse.ai`
 - **Password**: `DemoPassword123!`
 - **Role**: `admin`
 - **Initial Watchlist**: RELIANCE, TCS, INFY, HDFCBANK, TATAMOTORS
 - **Initial Data Mode**: `SIMULATED` (safe, deterministic ticks with zero broker credentials needed)
 
+> [!SECURITY NOTE]
+> **Production Hardening**: In production builds (`NODE_ENV=production`), the one-click demo login button is automatically stripped from the client UI (`import.meta.env.DEV`), and the backend authentication router enforces a strict production security guard that rejects any login attempt for `demo@marketpulse.ai` with **HTTP 401** and `code: "DEMO_DISABLED"`.
+
 ---
 
-## 4. Quick Start Guide (Windows 11 Setup)
+## 4. Technical Documentation Sitemap
+
+For in-depth operational and architectural specifications, consult the dedicated manuals:
+- **[PROJECT_ARCHITECTURE.md](file:///f:/KD%20project%202026%20NOV/PROJECT_ARCHITECTURE.md)**: System design, module interactions, and latency SLA.
+- **[API_DOCUMENTATION.md](file:///f:/KD%20project%202026%20NOV/API_DOCUMENTATION.md)**: REST & Socket.IO endpoint contracts and payload schemas.
+- **[DATABASE_SCHEMA.md](file:///f:/KD%20project%202026%20NOV/DATABASE_SCHEMA.md)**: PostgreSQL 18 relational schema (13 tables), constraints, and indexes.
+- **[SETUP_AND_INSTALLATION.md](file:///f:/KD%20project%202026%20NOV/SETUP_AND_INSTALLATION.md)**: Step-by-step developer and workstation installation guide.
+- **[ENVIRONMENT_CONFIGURATION.md](file:///f:/KD%20project%202026%20NOV/ENVIRONMENT_CONFIGURATION.md)**: Environment variable dictionary and secret generation rules.
+- **[TESTING_REPORT.md](file:///f:/KD%20project%202026%20NOV/TESTING_REPORT.md)**: Audit report covering all 64 backend and 6 frontend automated tests.
+- **[DEPLOYMENT_GUIDE.md](file:///f:/KD%20project%202026%20NOV/DEPLOYMENT_GUIDE.md)**: Production deployment instructions for PM2, Docker, and Nginx.
+- **[MARKET_DATA_PROVIDER_GUIDE.md](file:///f:/KD%20project%202026%20NOV/MARKET_DATA_PROVIDER_GUIDE.md)**: Upstox V3, TejHQ, Simulated, and Replay adapter guides.
+- **[KNOWN_LIMITATIONS.md](file:///f:/KD%20project%202026%20NOV/KNOWN_LIMITATIONS.md)**: Regulatory disclaimers, broker boundaries, and operational constraints.
+
+---
+
+## 5. Quick Start Guide (Windows 11 Setup)
 
 ### Prerequisites
 - Node.js >= 20.x (`node -v`)
@@ -163,36 +181,32 @@ To connect live Upstox V3 feeds when approved by the broker:
 
 ---
 
-## 6. Automated Test Suites & Production Builds
+## 7. Automated Test Suites & Production Builds
 
 ### Run Frontend Tests
 ```powershell
-cd "F:\KD project\frontend"
-npm test
+npm run test --workspace=frontend
 ```
 *Tests pass: 6/6 (session timeout guard, string type coercion, protected route fallback, All Stocks N/A safeguard, pagination boundaries, API client token injection).*
 
 ### Run Backend Tests
 ```powershell
-cd "F:\KD project\backend"
-npm test
+npm run test --workspace=backend
 ```
-*Tests pass: 51/51 across all 11 test suites (all stocks, anomaly radar, auth, authorization, catalogue, database, forecasting, market ingestion, realtime gateway, tejhq, upstox realtime).*
+*Tests pass: 63 passed, 1 skipped (live token standby), 0 failed across all 64 automated test specifications.*
 
 ### Run Production Builds
 ```powershell
 # Backend compilation
-cd "F:\KD project\backend"
-npm run build
+npm run build --workspace=backend
 
 # Frontend bundle
-cd "F:\KD project\frontend"
-npm run build
+npm run build --workspace=frontend
 ```
 
 ---
 
-## 7. Windows Troubleshooting Guide
+## 8. Windows Troubleshooting Guide
 
 1. **Stuck on "Initializing MarketPulse Session…"**:
    - The frontend includes a 5-second `AbortController` timeout guard. If the backend is restarting or offline, an actionable **"Session Initialization Notice"** card appears with **"Retry Connection"** and **"Proceed to Sign In"** buttons.
