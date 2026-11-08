@@ -28,6 +28,7 @@ export const Login: React.FC = () => {
   };
 
   const handleDemoLogin = async () => {
+    if (!import.meta.env.DEV) return;
     setError(null);
     setLoading(true);
     try {
@@ -119,21 +120,23 @@ export const Login: React.FC = () => {
             </button>
           </form>
 
-          {/* Quick Demo Login Option */}
-          <div className="mt-5 pt-5 border-t border-slate-800/80">
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              disabled={loading}
-              className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 text-cyan-400 text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm group"
-            >
-              <ShieldCheck className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              One-Click Demo Account Login
-            </button>
-            <p className="text-[11px] text-slate-500 text-center mt-2">
-              Seeded evaluator credentials: <span className="text-slate-400 font-mono">demo@marketpulse.ai</span>
-            </p>
-          </div>
+          {/* Quick Demo Login Option (Development / Evaluation Mode Only) */}
+          {import.meta.env.DEV && (
+            <div className="mt-5 pt-5 border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                disabled={loading}
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 text-cyan-400 text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm group"
+              >
+                <ShieldCheck className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                One-Click Demo Account Login
+              </button>
+              <p className="text-[11px] text-slate-500 text-center mt-2">
+                Seeded evaluator credentials: <span className="text-slate-400 font-mono">demo@marketpulse.ai</span>
+              </p>
+            </div>
+          )}
 
           <div className="mt-6 text-center text-xs text-slate-400">
             Don't have an account yet?{' '}

@@ -114,6 +114,15 @@ authRouter.post('/login', async (req: Request, res: Response): Promise<void> => 
     const { email, password } = parseResult.data;
     const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
 
+    // Production security guard: reject demo credentials in production
+    if (config.isProduction && email === 'demo@marketpulse.ai') {
+      res.status(401).json({
+        error: 'Demo account is disabled in production environments.',
+        code: 'DEMO_DISABLED',
+      });
+      return;
+    }
+
     // Rate limiting check
     const lockStatus = loginRateLimiter.isLocked(clientIp, email);
     if (lockStatus.locked) {
