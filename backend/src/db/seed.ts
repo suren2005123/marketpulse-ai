@@ -81,6 +81,14 @@ export async function seedDatabase() {
     });
   }
 
+  // 2b. Seed User Preferences for Demo User
+  await db.saveUserPreferences(demoUserId, {
+    analysis_mode: 'BEGINNER',
+    default_timeframe: '15m',
+    favorite_indicators: ['RSI', 'MACD', 'EMA_20', 'EMA_50'],
+    learning_level: 'BEGINNER',
+  });
+
   // 3. Seed Watchlist for Demo User
   const watchlistItems = [
     { user_id: demoUserId, instrument_id: 'inst-rel', added_at: new Date().toISOString() },
@@ -297,7 +305,7 @@ export async function seedDatabase() {
   if (isPg) {
     await db.syncFromPg();
   } else {
-    db.saveLocalData();
+    db.saveLocalDataSync();
   }
   console.log('[Seed] Database successfully seeded with demo user, 10 instruments, candles, alerts, and performance history.');
 }

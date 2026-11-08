@@ -149,10 +149,10 @@ export class ForecastService {
     const now = new Date();
     const evaluated: any[] = [];
 
-    // Find pending forecasts whose target time has now passed
-    const pending = db.store.forecasts.filter(
-      f => f.instrument_id === inst.id && f.evaluation_status === 'PENDING'
-    );
+    // Find pending forecasts whose target time has now passed (bounded batch to prevent event loop delay)
+    const pending = db.store.forecasts
+      .filter(f => f.instrument_id === inst.id && f.evaluation_status === 'PENDING')
+      .slice(0, 25);
 
     for (const fc of pending) {
       const targetTime = new Date(fc.target_time);
@@ -164,6 +164,9 @@ export class ForecastService {
         const insideInterval = currentPrice >= fc.lower_bound && currentPrice <= fc.upper_bound;
 
         fc.evaluation_status = 'EVALUATED';
+        if (db.isPostgres() && db.getPool()) {
+          db.query('UPDATE forecasts SET evaluation_status = $1 WHERE id = $2', ['EVALUATED', fc.id]).catch(() => {});
+        }
 
         const evalRecord = {
           id: crypto.randomUUID(),

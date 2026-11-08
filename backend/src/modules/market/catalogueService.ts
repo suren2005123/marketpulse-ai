@@ -346,7 +346,24 @@ class CatalogueService {
    * Load instruments from local database cache on startup
    */
   async initializeFromDatabase(): Promise<void> {
-    const existing = db.store.instruments;
+    let existing = db.store.instruments;
+    if (!existing || existing.length === 0) {
+      try {
+        const { SEED_INSTRUMENTS } = await import('../../db/seed.js');
+        db.store.instruments = SEED_INSTRUMENTS.map(i => ({
+          id: i.id,
+          exchange: i.exchange,
+          symbol: i.symbol,
+          name: i.name,
+          sector: i.sector,
+          provider_instrument_key: i.providerKey,
+          active: true,
+        }));
+        existing = db.store.instruments;
+      } catch (err: any) {
+        // Fallback gracefully
+      }
+    }
     if (existing && existing.length > 0) {
       for (const inst of existing) {
         const itemObj: CatalogueInstrument = {

@@ -33,6 +33,11 @@ class DatabaseService {
     forecast_evaluations: any[];
     user_watchlists: any[];
     price_alerts: any[];
+    user_preferences: any[];
+    stock_explanations: any[];
+    trend_analyses: any[];
+    learning_progress: any[];
+    broker_partners: any[];
   };
 
   constructor() {
@@ -46,6 +51,11 @@ class DatabaseService {
       forecast_evaluations: [],
       user_watchlists: [],
       price_alerts: [],
+      user_preferences: [],
+      stock_explanations: [],
+      trend_analyses: [],
+      learning_progress: [],
+      broker_partners: [],
     };
   }
 
@@ -193,21 +203,83 @@ class DatabaseService {
   }
 
   private loadLocalData() {
-    if (fs.existsSync(this.localStorePath)) {
+    let targetPath = this.localStorePath;
+    if (!fs.existsSync(targetPath)) {
+      const altPath = path.resolve(process.cwd(), 'backend', 'marketpulse_db.json');
+      if (fs.existsSync(altPath)) {
+        targetPath = altPath;
+        this.localStorePath = altPath;
+      }
+    }
+
+    if (fs.existsSync(targetPath)) {
       try {
-        const raw = fs.readFileSync(this.localStorePath, 'utf8');
-        this.localData = JSON.parse(raw);
+        const raw = fs.readFileSync(targetPath, 'utf8');
+        const parsed = JSON.parse(raw);
+        this.localData = {
+          users: parsed.users || [],
+          refresh_tokens: parsed.refresh_tokens || [],
+          instruments: parsed.instruments || [],
+          market_candles: parsed.market_candles || [],
+          forecasts: parsed.forecasts || [],
+          forecast_evaluations: parsed.forecast_evaluations || [],
+          user_watchlists: parsed.user_watchlists || [],
+          price_alerts: parsed.price_alerts || [],
+          user_preferences: parsed.user_preferences || [],
+          stock_explanations: parsed.stock_explanations || [],
+          trend_analyses: parsed.trend_analyses || [],
+          learning_progress: parsed.learning_progress || [],
+          broker_partners: parsed.broker_partners || [],
+        };
       } catch (e) {
         console.error('[DB] Failed reading local database file. Initializing fresh store.');
       }
     }
+
+    if (!this.localData.instruments || this.localData.instruments.length === 0) {
+      this.localData.instruments = [
+        { id: 'inst-rel', exchange: 'NSE', symbol: 'RELIANCE', name: 'Reliance Industries Ltd', sector: 'Energy & Retail', provider_instrument_key: 'NSE_EQ|INE002A01018', active: true },
+        { id: 'inst-tcs', exchange: 'NSE', symbol: 'TCS', name: 'Tata Consultancy Services', sector: 'Information Technology', provider_instrument_key: 'NSE_EQ|INE467B01029', active: true },
+        { id: 'inst-infy', exchange: 'NSE', symbol: 'INFY', name: 'Infosys Ltd', sector: 'Information Technology', provider_instrument_key: 'NSE_EQ|INE009A01021', active: true },
+        { id: 'inst-hdfc', exchange: 'NSE', symbol: 'HDFCBANK', name: 'HDFC Bank Ltd', sector: 'Banking & Financial Services', provider_instrument_key: 'NSE_EQ|INE040A01034', active: true },
+        { id: 'inst-tmot', exchange: 'NSE', symbol: 'TATAMOTORS', name: 'Tata Motors Ltd', sector: 'Automobile', provider_instrument_key: 'NSE_EQ|INE155A01022', active: true },
+        { id: 'inst-icici', exchange: 'NSE', symbol: 'ICICIBANK', name: 'ICICI Bank Ltd', sector: 'Banking & Financial Services', provider_instrument_key: 'NSE_EQ|INE090A01021', active: true },
+        { id: 'inst-sbin', exchange: 'NSE', symbol: 'SBIN', name: 'State Bank of India', sector: 'Public Sector Banking', provider_instrument_key: 'NSE_EQ|INE062A01020', active: true },
+        { id: 'inst-airtel', exchange: 'NSE', symbol: 'BHARTIARTL', name: 'Bharti Airtel Ltd', sector: 'Telecommunications', provider_instrument_key: 'NSE_EQ|INE397D01024', active: true },
+        { id: 'inst-itc', exchange: 'NSE', symbol: 'ITC', name: 'ITC Ltd', sector: 'FMCG', provider_instrument_key: 'NSE_EQ|INE154A01025', active: true },
+        { id: 'inst-lici', exchange: 'BSE', symbol: 'LICI', name: 'Life Insurance Corp of India', sector: 'Insurance', provider_instrument_key: 'BSE_EQ|543526', active: true },
+      ];
+    }
   }
 
+  private saveDebounceTimer: NodeJS.Timeout | null = null;
+
   saveLocalData() {
+    // When PostgreSQL is active, PostgreSQL is the authoritative store; avoid redundant synchronous disk writes
+    if (this.isPg) return;
+    if (this.saveDebounceTimer) return;
+    this.saveDebounceTimer = setTimeout(() => {
+      this.saveDebounceTimer = null;
+      try {
+        fs.writeFile(this.localStorePath, JSON.stringify(this.localData, null, 2), 'utf8', (err) => {
+          if (err) console.error('[DB] Failed saving local data:', err.message);
+        });
+      } catch (e: any) {
+        console.error('[DB] Failed saving local data:', e.message);
+      }
+    }, 1000);
+  }
+
+  saveLocalDataSync() {
+    if (this.isPg) return;
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+    }
     try {
       fs.writeFileSync(this.localStorePath, JSON.stringify(this.localData, null, 2), 'utf8');
-    } catch (e) {
-      console.error('[DB] Failed saving local data:', e);
+    } catch (e: any) {
+      console.error('[DB] Failed saving local data synchronously:', e.message);
     }
   }
 
@@ -334,9 +406,70 @@ class DatabaseService {
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS user_preferences (
+        user_id VARCHAR(36) PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        analysis_mode VARCHAR(20) NOT NULL DEFAULT 'BEGINNER',
+        default_timeframe VARCHAR(10) NOT NULL DEFAULT '15m',
+        favorite_indicators JSONB DEFAULT '["RSI", "MACD", "EMA_20"]'::jsonb,
+        learning_level VARCHAR(20) DEFAULT 'BEGINNER',
+        updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS stock_explanations (
+        id VARCHAR(64) PRIMARY KEY,
+        instrument_id VARCHAR(36) NOT NULL REFERENCES instruments(id) ON DELETE CASCADE,
+        symbol VARCHAR(30) NOT NULL,
+        exchange VARCHAR(10) NOT NULL,
+        trend_classification VARCHAR(20) NOT NULL,
+        indicators JSONB NOT NULL,
+        beginner_summary TEXT NOT NULL,
+        advanced_summary TEXT NOT NULL,
+        facts JSONB NOT NULL,
+        interpretations JSONB NOT NULL,
+        timeframe VARCHAR(10) NOT NULL DEFAULT '15m',
+        source_mode VARCHAR(20) NOT NULL,
+        generated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS trend_analyses (
+        id VARCHAR(64) PRIMARY KEY,
+        instrument_id VARCHAR(36) NOT NULL REFERENCES instruments(id) ON DELETE CASCADE,
+        symbol VARCHAR(30) NOT NULL,
+        exchange VARCHAR(10) NOT NULL,
+        timeframe VARCHAR(10) NOT NULL,
+        classification VARCHAR(20) NOT NULL,
+        confidence_score NUMERIC(5, 2) NOT NULL,
+        indicators JSONB NOT NULL,
+        supporting_evidence JSONB NOT NULL,
+        analyzed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS learning_progress (
+        id VARCHAR(64) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        topic_id VARCHAR(50) NOT NULL,
+        completed BOOLEAN DEFAULT false,
+        quiz_score NUMERIC(5, 2),
+        last_viewed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, topic_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS broker_partners (
+        id VARCHAR(64) PRIMARY KEY,
+        partner_name VARCHAR(100) NOT NULL,
+        partner_code VARCHAR(50) UNIQUE NOT NULL,
+        api_key_hash VARCHAR(255) NOT NULL,
+        allowed_origins JSONB DEFAULT '[]'::jsonb,
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE INDEX IF NOT EXISTS idx_candles_time ON market_candles(instrument_id, candle_start DESC);
       CREATE INDEX IF NOT EXISTS idx_forecasts_target ON forecasts(instrument_id, target_time DESC);
       CREATE INDEX IF NOT EXISTS idx_alerts_user ON price_alerts(user_id, active);
+      CREATE INDEX IF NOT EXISTS idx_explanations_inst ON stock_explanations(instrument_id, generated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_trends_inst ON trend_analyses(instrument_id, timeframe, analyzed_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_learning_user ON learning_progress(user_id);
 
       -- Deduplicate candles before unique index creation
       DELETE FROM market_candles a USING market_candles b
@@ -794,6 +927,178 @@ class DatabaseService {
     this.saveLocalData();
   }
 
+  async getUserPreferences(userId: string): Promise<any> {
+    if (this.isPg && this.pgPool) {
+      try {
+        const res = await this.pgPool.query('SELECT * FROM user_preferences WHERE user_id = $1', [userId]);
+        if (res.rowCount && res.rows[0]) return res.rows[0];
+      } catch (err: any) {
+        console.warn('[DB User Preferences Error]:', err.message);
+      }
+    }
+    const local = this.localData.user_preferences?.find(p => p.user_id === userId);
+    return local || {
+      user_id: userId,
+      analysis_mode: 'BEGINNER',
+      default_timeframe: '15m',
+      favorite_indicators: ['RSI', 'MACD', 'EMA_20'],
+      learning_level: 'BEGINNER',
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  async saveUserPreferences(userId: string, prefs: {
+    analysis_mode?: string;
+    default_timeframe?: string;
+    favorite_indicators?: string[];
+    learning_level?: string;
+  }): Promise<any> {
+    const existing = await this.getUserPreferences(userId);
+    const updated = {
+      user_id: userId,
+      analysis_mode: prefs.analysis_mode || existing.analysis_mode || 'BEGINNER',
+      default_timeframe: prefs.default_timeframe || existing.default_timeframe || '15m',
+      favorite_indicators: prefs.favorite_indicators || existing.favorite_indicators || ['RSI', 'MACD', 'EMA_20'],
+      learning_level: prefs.learning_level || existing.learning_level || 'BEGINNER',
+      updated_at: new Date().toISOString(),
+    };
+
+    if (this.isPg && this.pgPool) {
+      await this.pgPool.query(
+        `INSERT INTO user_preferences (user_id, analysis_mode, default_timeframe, favorite_indicators, learning_level, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (user_id) DO UPDATE SET
+           analysis_mode = EXCLUDED.analysis_mode,
+           default_timeframe = EXCLUDED.default_timeframe,
+           favorite_indicators = EXCLUDED.favorite_indicators,
+           learning_level = EXCLUDED.learning_level,
+           updated_at = EXCLUDED.updated_at`,
+        [
+          updated.user_id,
+          updated.analysis_mode,
+          updated.default_timeframe,
+          JSON.stringify(updated.favorite_indicators),
+          updated.learning_level,
+          updated.updated_at,
+        ]
+      ).catch((err: any) => console.warn('[DB Save Preferences Error]:', err.message));
+    }
+
+    const idx = (this.localData.user_preferences || []).findIndex(p => p.user_id === userId);
+    if (idx >= 0) {
+      this.localData.user_preferences[idx] = updated;
+    } else {
+      this.localData.user_preferences = this.localData.user_preferences || [];
+      this.localData.user_preferences.push(updated);
+    }
+    this.saveLocalData();
+    return updated;
+  }
+
+  async insertStockExplanation(exp: any): Promise<void> {
+    if (this.isPg && this.pgPool) {
+      await this.pgPool.query(
+        `INSERT INTO stock_explanations (id, instrument_id, symbol, exchange, trend_classification, indicators, beginner_summary, advanced_summary, facts, interpretations, timeframe, source_mode, generated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          exp.id,
+          exp.instrument_id,
+          exp.symbol,
+          exp.exchange,
+          exp.trend_classification,
+          JSON.stringify(exp.indicators),
+          exp.beginner_summary,
+          exp.advanced_summary,
+          JSON.stringify(exp.facts),
+          JSON.stringify(exp.interpretations),
+          exp.timeframe || '15m',
+          exp.source_mode || 'SIMULATED',
+          exp.generated_at || new Date().toISOString(),
+        ]
+      ).catch((err: any) => console.warn('[DB Explanation Insert Error]:', err.message));
+    }
+    this.localData.stock_explanations = this.localData.stock_explanations || [];
+    this.localData.stock_explanations.unshift(exp);
+    if (this.localData.stock_explanations.length > 500) {
+      this.localData.stock_explanations.pop();
+    }
+    this.saveLocalData();
+  }
+
+  async insertTrendAnalysis(record: any): Promise<void> {
+    if (this.isPg && this.pgPool) {
+      await this.pgPool.query(
+        `INSERT INTO trend_analyses (id, instrument_id, symbol, exchange, timeframe, classification, confidence_score, indicators, supporting_evidence, analyzed_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          record.id,
+          record.instrument_id,
+          record.symbol,
+          record.exchange,
+          record.timeframe,
+          record.classification,
+          record.confidence_score,
+          JSON.stringify(record.indicators),
+          JSON.stringify(record.supporting_evidence),
+          record.analyzed_at || new Date().toISOString(),
+        ]
+      ).catch((err: any) => console.warn('[DB Trend Insert Error]:', err.message));
+    }
+    this.localData.trend_analyses = this.localData.trend_analyses || [];
+    this.localData.trend_analyses.unshift(record);
+    if (this.localData.trend_analyses.length > 500) {
+      this.localData.trend_analyses.pop();
+    }
+    this.saveLocalData();
+  }
+
+  async saveLearningProgress(userId: string, topicId: string, completed: boolean, quizScore?: number): Promise<any> {
+    const record = {
+      id: `lp-${userId}-${topicId}`,
+      user_id: userId,
+      topic_id: topicId,
+      completed,
+      quiz_score: quizScore !== undefined ? quizScore : null,
+      last_viewed_at: new Date().toISOString(),
+    };
+
+    if (this.isPg && this.pgPool) {
+      await this.pgPool.query(
+        `INSERT INTO learning_progress (id, user_id, topic_id, completed, quiz_score, last_viewed_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (user_id, topic_id) DO UPDATE SET
+           completed = EXCLUDED.completed,
+           quiz_score = COALESCE(EXCLUDED.quiz_score, learning_progress.quiz_score),
+           last_viewed_at = EXCLUDED.last_viewed_at`,
+        [record.id, record.user_id, record.topic_id, record.completed, record.quiz_score, record.last_viewed_at]
+      ).catch((err: any) => console.warn('[DB Learning Insert Error]:', err.message));
+    }
+
+    this.localData.learning_progress = this.localData.learning_progress || [];
+    const idx = this.localData.learning_progress.findIndex(p => p.user_id === userId && p.topic_id === topicId);
+    if (idx >= 0) {
+      this.localData.learning_progress[idx] = record;
+    } else {
+      this.localData.learning_progress.push(record);
+    }
+    this.saveLocalData();
+    return record;
+  }
+
+  async getUserLearningProgress(userId: string): Promise<any[]> {
+    if (this.isPg && this.pgPool) {
+      try {
+        const res = await this.pgPool.query('SELECT * FROM learning_progress WHERE user_id = $1', [userId]);
+        return res.rows;
+      } catch (err: any) {
+        console.warn('[DB Learning Query Error]:', err.message);
+      }
+    }
+    return (this.localData.learning_progress || []).filter(p => p.user_id === userId);
+  }
+
   // Generic query method
   async query<T = any>(sql: string, params: any[] = []): Promise<QueryResult<T>> {
     if (this.isPg && this.pgPool) {
@@ -828,7 +1133,7 @@ class DatabaseService {
   private handleLocalSelect<T>(sql: string, params: any[]): QueryResult<T> {
     const lower = sql.toLowerCase();
     let tableName = '';
-    const tableNames = ['users', 'refresh_tokens', 'instruments', 'market_candles', 'forecasts', 'forecast_evaluations', 'user_watchlists', 'price_alerts'];
+    const tableNames = ['users', 'refresh_tokens', 'instruments', 'market_candles', 'forecasts', 'forecast_evaluations', 'user_watchlists', 'price_alerts', 'user_preferences', 'stock_explanations', 'trend_analyses', 'learning_progress', 'broker_partners'];
     
     for (const t of tableNames) {
       if (lower.includes(`from ${t}`)) {
@@ -901,7 +1206,7 @@ class DatabaseService {
   private handleLocalInsert<T>(sql: string, params: any[]): QueryResult<T> {
     const lower = sql.toLowerCase();
     let tableName = '';
-    const tableNames = ['users', 'refresh_tokens', 'instruments', 'market_candles', 'forecasts', 'forecast_evaluations', 'user_watchlists', 'price_alerts'];
+    const tableNames = ['users', 'refresh_tokens', 'instruments', 'market_candles', 'forecasts', 'forecast_evaluations', 'user_watchlists', 'price_alerts', 'user_preferences', 'stock_explanations', 'trend_analyses', 'learning_progress', 'broker_partners'];
     
     for (const t of tableNames) {
       if (lower.includes(`into ${t}`)) {

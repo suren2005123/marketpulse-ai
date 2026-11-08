@@ -81,7 +81,7 @@ marketRouter.get('/instruments/catalogue', (req: Request, res: Response): void =
           volume: latest.volume,
           sourceMode: latest.source_mode || activeMode,
           freshness: latest.source_mode || activeMode,
-          tradingDate: latest.candle_start?.split('T')[0],
+          tradingDate: latest.candle_start ? new Date(latest.candle_start).toISOString().split('T')[0] : undefined,
         };
       }
       return inst;

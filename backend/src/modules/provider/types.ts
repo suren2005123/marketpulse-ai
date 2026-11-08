@@ -1,3 +1,12 @@
+export interface TejHQStatus {
+  pipeline_status: string;
+  trading_date: string;
+  prices_published_at: string;
+  nse_records_count: number;
+  bse_records_count: number;
+  mode: SourceMode;
+}
+
 export type SourceMode = 'LIVE' | 'HISTORICAL_REPLAY' | 'SIMULATED' | 'END_OF_DAY';
 
 export interface MarketTick {
