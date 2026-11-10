@@ -59,7 +59,7 @@ export class ForecastService {
             source_mode: c.source_mode,
           })),
         }),
-        signal: AbortSignal.timeout(1500),
+        signal: AbortSignal.timeout(3500),
       });
 
       if (response.ok) {

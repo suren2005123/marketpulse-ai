@@ -7,13 +7,31 @@ import { Bell, X, AlertTriangle } from 'lucide-react';
 
 export const AppLayout: React.FC = () => {
   const { connectionStatus, reconnectAttempts, triggeredAlerts, clearTriggeredAlert } = useSocket();
+  const isPresentation = typeof window !== 'undefined' && sessionStorage.getItem('marketpulse_presentation_mode') === 'true';
 
   return (
     <div className="min-h-screen bg-[#07090e] flex flex-col font-sans">
+      {/* Academic Presentation Mode Notification Banner */}
+      {isPresentation && (
+        <div className="bg-gradient-to-r from-blue-950/90 to-cyan-950/90 border-b border-cyan-500/30 px-4 py-1.5 flex items-center justify-between text-[11px] text-cyan-200">
+          <div className="flex items-center gap-2">
+            <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold text-[10px] border border-cyan-500/30">
+              ACADEMIC PRESENTATION
+            </span>
+            <span>
+              Standalone Frontend Preview on Vercel. Backend API & WebSocket stream are offline; displaying UI layout & simulated architecture.
+            </span>
+          </div>
+          <span className="font-mono text-cyan-400 text-[10px] hidden md:inline">
+            MarketPulse AI v2.0
+          </span>
+        </div>
+      )}
+
       <Navbar />
 
       {/* Disconnection/Reconnecting Warning Banner */}
-      {connectionStatus !== 'connected' && (
+      {!isPresentation && connectionStatus !== 'connected' && (
         <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between text-xs text-amber-300">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 animate-bounce" />

@@ -31,6 +31,7 @@ export interface Instrument {
   lastUpdatedIst?: string;
   sourceMode?: SourceMode;
   freshness?: string;
+  provider?: string;
 }
 
 export interface CataloguePagination {
@@ -87,6 +88,9 @@ export interface Candle {
   close: number;
   volume: number;
   sourceMode?: SourceMode;
+  instrumentId?: string;
+  candleStart?: string;
+  provider?: string;
 }
 
 export interface Forecast {
@@ -113,14 +117,15 @@ export interface ForecastHistoryItem extends Forecast {
 
 export interface HorizonPerformance {
   sampleCount: number;
-  horizonMinutes: number;
+  horizonMinutes?: number;
+  horizon?: string;
   mae: number;
   rmse: number;
   naiveMae: number;
   baselineImprovementPct: number;
   directionalAccuracyPct: number;
   intervalCoveragePct: number;
-  evidenceStatus: string;
+  evidenceStatus?: string;
 }
 
 export interface Alert {
@@ -128,12 +133,13 @@ export interface Alert {
   instrumentId: string;
   symbol: string;
   exchange: string;
-  name: string;
+  name?: string;
   conditionType: 'PRICE_ABOVE' | 'PRICE_BELOW' | 'PCT_CHANGE_ABOVE' | 'VOLUME_SPIKE' | 'UNCERTAINTY_WIDE' | 'FEED_STALE';
   threshold: number;
   active: boolean;
-  triggeredAt: string | null;
+  triggeredAt?: string | null;
   createdAt: string;
+  userId?: string;
 }
 
 export interface TriggeredAlertNotification {

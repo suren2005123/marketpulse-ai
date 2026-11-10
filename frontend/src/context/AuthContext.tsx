@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types/index.js';
-import { api, setAccessToken, setOnUnauthenticated } from '../api/client.js';
+import { api, setAccessToken, setOnUnauthenticated, resolveApiUrl, API_BASE_URL } from '../api/client.js';
 
 interface AuthContextType {
   user: User | null;
@@ -26,7 +26,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
     try {
-      const res = await fetch('/api/auth/refresh', {
+      const refreshEndpoint = resolveApiUrl('/api/auth/refresh');
+      const res = await fetch(refreshEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -50,10 +51,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearTimeout(timeoutId);
       setAccessToken(null);
       setUser(null);
+      const targetHost = API_BASE_URL || 'http://localhost:5000 (port 5000)';
       if (err.name === 'AbortError') {
-        setInitError('Connection timed out while reaching backend service on port 5000.');
+        setInitError(`Connection timed out while reaching backend service on port 5000 at ${targetHost}.`);
       } else if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
-        setInitError('Unable to connect to backend service at http://localhost:5000. Please ensure the backend server is active.');
+        setInitError(`Unable to connect to backend service at ${targetHost}. Please ensure the backend server is active.`);
       } else {
         setInitError(err.message || 'Session initialization failed unexpectedly.');
       }

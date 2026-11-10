@@ -32,7 +32,25 @@ export const Alerts: React.FC = () => {
           setSelectedInstId(instRes.data[0].id);
         }
       } catch (err) {
-        console.error('Error fetching alerts:', err);
+        console.warn('Alerts operating in presentation preview mode:', err);
+        setAlerts([
+          {
+            id: 'alert-rel-1',
+            userId: 'usr-presentation',
+            instrumentId: 'inst-rel',
+            symbol: 'RELIANCE',
+            exchange: 'NSE',
+            conditionType: 'PRICE_ABOVE',
+            threshold: 3000.00,
+            active: true,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+        setInstruments([
+          { id: 'inst-rel', exchange: 'NSE', symbol: 'RELIANCE', name: 'Reliance Industries Ltd', active: true },
+          { id: 'inst-tcs', exchange: 'NSE', symbol: 'TCS', name: 'Tata Consultancy Services', active: true },
+        ]);
+        setSelectedInstId('inst-rel');
       } finally {
         setLoading(false);
       }

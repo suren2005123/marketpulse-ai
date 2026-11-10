@@ -1,6 +1,20 @@
 let currentAccessToken: string | null = null;
 let onUnauthenticatedHandler: (() => void) | null = null;
 
+export const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL)
+  ? String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '')
+  : '';
+
+export function resolveApiUrl(endpoint: string): string {
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    return endpoint;
+  }
+  if (API_BASE_URL && endpoint.startsWith('/')) {
+    return `${API_BASE_URL}${endpoint}`;
+  }
+  return endpoint;
+}
+
 export function setAccessToken(token: string | null) {
   currentAccessToken = token;
 }
@@ -43,9 +57,10 @@ async function request<T = any>(
     signal: controller.signal,
   };
 
+  const targetUrl = resolveApiUrl(endpoint);
   let response: Response;
   try {
-    response = await fetch(endpoint, fetchOptions);
+    response = await fetch(targetUrl, fetchOptions);
   } catch (err: any) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
@@ -53,7 +68,8 @@ async function request<T = any>(
       timeoutError.code = 'TIMEOUT';
       throw timeoutError;
     }
-    const networkError: any = new Error(`Unable to connect to backend service. Please ensure the server on port 5000 is running.`);
+    const backendLabel = API_BASE_URL || 'backend service (port 5000)';
+    const networkError: any = new Error(`Unable to connect to ${backendLabel}. Please ensure the server is active.`);
     networkError.code = 'NETWORK_ERROR';
     networkError.cause = err;
     throw networkError;
@@ -66,7 +82,8 @@ async function request<T = any>(
     try {
       const refreshController = new AbortController();
       const timer = setTimeout(() => refreshController.abort(), 6000);
-      const refreshRes = await fetch('/api/auth/refresh', {
+      const refreshUrl = resolveApiUrl('/api/auth/refresh');
+      const refreshRes = await fetch(refreshUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

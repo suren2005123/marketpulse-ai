@@ -2,7 +2,7 @@ import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
-import { config } from '../config/index.js';
+import { config, isOriginAllowed } from '../config/index.js';
 import { TokenService, TokenPayload } from '../modules/auth/tokenService.js';
 import { IMarketDataProvider, MarketTick } from '../modules/provider/types.js';
 import { CandleAggregator, FinalizedCandle } from '../modules/market/candleAggregator.js';
@@ -24,10 +24,18 @@ export class RealtimeGateway {
     this.candleAggregator = candleAggregator;
     this.io = new Server(httpServer, {
       cors: {
-        origin: config.frontendUrl,
+        origin: (origin, callback) => {
+          if (isOriginAllowed(origin)) {
+            callback(null, true);
+          } else {
+            console.warn(`[Socket.IO CORS] Blocked origin: ${origin}`);
+            callback(new Error('Origin not allowed by Socket.IO CORS'), false);
+          }
+        },
         credentials: true,
         methods: ['GET', 'POST'],
       },
+      transports: ['websocket', 'polling'],
       pingTimeout: 10000,
       pingInterval: 15000,
     });

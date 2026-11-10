@@ -15,6 +15,82 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+const PRESENTATION_FALLBACK_STOCKS: Instrument[] = [
+  { id: 'inst-rel', exchange: 'NSE', symbol: 'RELIANCE', name: 'Reliance Industries Ltd', sector: 'Energy & Retail', provider_instrument_key: 'NSE_EQ|INE002A01018', active: true },
+  { id: 'inst-tcs', exchange: 'NSE', symbol: 'TCS', name: 'Tata Consultancy Services', sector: 'Information Technology', provider_instrument_key: 'NSE_EQ|INE467B01029', active: true },
+  { id: 'inst-infy', exchange: 'NSE', symbol: 'INFY', name: 'Infosys Ltd', sector: 'Information Technology', provider_instrument_key: 'NSE_EQ|INE009A01021', active: true },
+  { id: 'inst-hdfc', exchange: 'NSE', symbol: 'HDFCBANK', name: 'HDFC Bank Ltd', sector: 'Banking & Financial Services', provider_instrument_key: 'NSE_EQ|INE040A01034', active: true },
+  { id: 'inst-tmot', exchange: 'NSE', symbol: 'TATAMOTORS', name: 'Tata Motors Ltd', sector: 'Automobile', provider_instrument_key: 'NSE_EQ|INE155A01022', active: true },
+  { id: 'inst-icici', exchange: 'NSE', symbol: 'ICICIBANK', name: 'ICICI Bank Ltd', sector: 'Banking & Financial Services', provider_instrument_key: 'NSE_EQ|INE090A01021', active: true },
+  { id: 'inst-sbin', exchange: 'NSE', symbol: 'SBIN', name: 'State Bank of India', sector: 'Public Sector Banking', provider_instrument_key: 'NSE_EQ|INE062A01020', active: true },
+];
+
+const STOCK_BASE_PRICES: Record<string, number> = {
+  RELIANCE: 2985.50,
+  TCS: 4140.00,
+  INFY: 1885.25,
+  HDFCBANK: 1682.40,
+  TATAMOTORS: 984.75,
+  ICICIBANK: 1248.60,
+  SBIN: 822.30,
+};
+
+function generatePresentationCandles(symbol: string): Candle[] {
+  const basePrice = STOCK_BASE_PRICES[symbol] || 2500;
+  const list: Candle[] = [];
+  let price = basePrice;
+  const now = Date.now();
+  for (let i = 59; i >= 0; i--) {
+    const time = new Date(now - i * 60 * 1000).toISOString();
+    const delta = (Math.sin(i * 0.25) + Math.sin(i * 0.7) * 0.5) * (price * 0.002);
+    const open = price;
+    const close = Number((price + delta).toFixed(2));
+    const high = Number((Math.max(open, close) + price * 0.0015).toFixed(2));
+    const low = Number((Math.min(open, close) - price * 0.0015).toFixed(2));
+    list.push({
+      id: `c-pres-${i}`,
+      instrumentId: symbol,
+      candleStart: time,
+      timestamp: time,
+      open,
+      high,
+      low,
+      close,
+      volume: Math.floor(15000 + Math.random() * 30000),
+      sourceMode: 'SIMULATED',
+      provider: 'SIMULATED_FEED',
+    });
+    price = close;
+  }
+  return list;
+}
+
+function generatePresentationForecasts(symbol: string): Forecast[] {
+  const currentPrice = STOCK_BASE_PRICES[symbol] || 2500;
+  const horizons = [15, 30, 45, 60];
+  const now = Date.now();
+  return horizons.map(h => {
+    const change = Math.sin(h * 0.1) * 0.012 * currentPrice;
+    const predicted = Number((currentPrice + change).toFixed(2));
+    const spread = currentPrice * 0.012;
+    return {
+      id: `fc-pres-${h}`,
+      instrumentId: symbol,
+      issuedAt: new Date(now).toISOString(),
+      targetTime: new Date(now + h * 60 * 1000).toISOString(),
+      horizonMinutes: h,
+      anchorPrice: currentPrice,
+      predictedPrice: predicted,
+      lowerBound: Number((predicted - spread).toFixed(2)),
+      upperBound: Number((predicted + spread).toFixed(2)),
+      probabilityUp: 0.58,
+      modelVersion: 'MP-ARIMA-v2 (Simulated)',
+      sourceMode: 'SIMULATED',
+      evaluationStatus: 'PENDING',
+    };
+  });
+}
+
 export const Dashboard: React.FC = () => {
   const { socket, quotes, latestForecasts, reconnectCount, feedStatus, latency } = useSocket();
 
@@ -50,18 +126,25 @@ export const Dashboard: React.FC = () => {
       try {
         setLoading(true);
         const [instRes, watchRes, alertRes] = await Promise.all([
-          api.get('/api/instruments'),
+          api.get('/api/instruments').catch(() => ({ data: [] })),
           api.get('/api/watchlist').catch(() => ({ data: [] })),
           api.get('/api/alerts').catch(() => ({ data: [] })),
         ]);
 
         if (isMounted) {
-          setInstruments(instRes.data || []);
+          if (instRes.data && instRes.data.length > 0) {
+            setInstruments(instRes.data);
+          } else {
+            setInstruments(PRESENTATION_FALLBACK_STOCKS);
+          }
           setUserWatchlist(watchRes.data || []);
           setUserAlerts(alertRes.data || []);
         }
       } catch (err) {
-        console.error('Failed loading dashboard overview:', err);
+        console.warn('Dashboard operating in presentation fallback mode:', err);
+        if (isMounted) {
+          setInstruments(PRESENTATION_FALLBACK_STOCKS);
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -80,16 +163,28 @@ export const Dashboard: React.FC = () => {
     async function loadSymbolData() {
       try {
         const [candleRes, forecastRes] = await Promise.all([
-          api.get(`/api/market/NSE/${selectedSymbol}/candles?limit=60`),
-          api.get(`/api/forecasts/NSE/${selectedSymbol}`),
+          api.get(`/api/market/NSE/${selectedSymbol}/candles?limit=60`).catch(() => ({ data: [] })),
+          api.get(`/api/forecasts/NSE/${selectedSymbol}`).catch(() => ({ forecasts: [] })),
         ]);
 
         if (isMounted) {
-          setCandles(candleRes.data || []);
-          setForecasts(forecastRes.forecasts || []);
+          if (candleRes.data && candleRes.data.length > 0) {
+            setCandles(candleRes.data);
+          } else {
+            setCandles(generatePresentationCandles(selectedSymbol));
+          }
+          if (forecastRes.forecasts && forecastRes.forecasts.length > 0) {
+            setForecasts(forecastRes.forecasts);
+          } else {
+            setForecasts(generatePresentationForecasts(selectedSymbol));
+          }
         }
       } catch (err) {
-        console.error(`Failed loading data for ${selectedSymbol}:`, err);
+        console.warn(`Symbol data fallback for ${selectedSymbol}:`, err);
+        if (isMounted) {
+          setCandles(generatePresentationCandles(selectedSymbol));
+          setForecasts(generatePresentationForecasts(selectedSymbol));
+        }
       }
     }
 

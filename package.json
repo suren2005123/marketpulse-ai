@@ -28,5 +28,12 @@
     "redis"
   ],
   "author": "MarketPulse AI Team",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.6.6"
+  },
+  "overrides": {
+    "@types/express": "4.17.25",
+    "@types/express-serve-static-core": "4.19.9"
+  }
 }

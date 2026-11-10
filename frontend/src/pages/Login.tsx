@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
-import { Activity, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Activity, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Eye } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -25,6 +25,13 @@ export const Login: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEnterPresentation = () => {
+    try {
+      sessionStorage.setItem('marketpulse_presentation_mode', 'true');
+    } catch {}
+    navigate('/');
   };
 
   const handleDemoLogin = async () => {
@@ -119,6 +126,21 @@ export const Login: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+
+          {/* Academic Presentation Mode Entry */}
+          <div className="mt-5 pt-5 border-t border-slate-800/80">
+            <button
+              type="button"
+              onClick={handleEnterPresentation}
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600/20 to-cyan-600/20 hover:from-blue-600/30 hover:to-cyan-600/30 border border-cyan-500/40 text-cyan-300 text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm"
+            >
+              <Eye className="w-4 h-4 text-cyan-400" />
+              Explore Academic Presentation Preview
+            </button>
+            <p className="text-[11px] text-slate-500 text-center mt-2 leading-relaxed">
+              Standalone evaluation mode: inspect full UI layouts, interactive charts, and model telemetry without requiring live backend connection.
+            </p>
+          </div>
 
           {/* Quick Demo Login Option (Development / Evaluation Mode Only) */}
           {import.meta.env.DEV && (

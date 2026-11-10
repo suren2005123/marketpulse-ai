@@ -1,10 +1,10 @@
 import http from 'http';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response, NextFunction, RequestHandler } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 
-import { config } from './config/index.js';
+import { config, isOriginAllowed } from './config/index.js';
 import { db } from './db/index.js';
 import { seedDatabase } from './db/seed.js';
 import { CandleAggregator } from './modules/market/candleAggregator.js';
@@ -40,14 +40,39 @@ async function bootstrap() {
   }));
 
   app.use(cors({
-    origin: [config.frontendUrl, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }));
-
-  app.use(cookieParser());
+  
+  app.use(cookieParser() as unknown as RequestHandler);
   app.use(express.json());
+
+  // Top-level Health Check endpoint for cloud platform monitors (Render, ALB, k8s)
+  app.get('/health', async (req: Request, res: Response) => {
+    const dbHealth = await db.checkHealth();
+    res.json({
+      status: dbHealth.status === 'unhealthy' ? 'degraded' : 'healthy',
+      service: 'MarketPulse AI Backend Core',
+      version: '2.0.0',
+      uptimeSeconds: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      mode: config.appMode,
+      db: {
+        connected: dbHealth.connected,
+        engine: dbHealth.engine,
+        latencyMs: dbHealth.latencyMs,
+      },
+    });
+  });
 
   // Request logger
   app.use((req: Request, res: Response, next: NextFunction) => {

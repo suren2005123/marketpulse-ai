@@ -1,0 +1,58 @@
+services:
+  # MarketPulse AI Backend Core (Express + Socket.IO Persistent Server)
+  - type: web
+    name: marketpulse-backend
+    env: node
+    plan: starter
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: APP_MODE
+        value: SIMULATED
+      - key: FRONTEND_URL
+        sync: false
+      - key: ML_SERVICE_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: MARKET_DATA_PROVIDER
+        value: tejhq
+      - key: TEJHQ_BASE_URL
+        value: https://api.tejhq.dev
+      - key: REALTIME_LATENCY_BUDGET_MS
+        value: "2000"
+
+  # MarketPulse AI ML Service (FastAPI + scikit-learn Microservice)
+  - type: web
+    name: marketpulse-ml
+    env: python
+    plan: starter
+    region: oregon
+    rootDir: ml-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9

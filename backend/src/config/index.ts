@@ -79,13 +79,37 @@ validateProductionSecrets({
   jwtRefreshSecret: refreshSecret,
 });
 
+export function getAllowedOrigins(): string[] {
+  const raw = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const urls = raw.split(',').map(u => u.trim().replace(/\/+$/, '')).filter(Boolean);
+  const defaultLocal = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4173', 'http://127.0.0.1:4173'];
+  for (const loc of defaultLocal) {
+    if (!urls.includes(loc)) {
+      urls.push(loc);
+    }
+  }
+  return urls;
+}
+
+export function isOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return true; // allow same-origin, curl, server-to-server, mobile
+  const normalized = origin.trim().replace(/\/+$/, '');
+  const allowed = getAllowedOrigins();
+  if (allowed.includes(normalized)) return true;
+  // Support Vercel deployment preview subdomains (e.g. https://marketpulse-*-team.vercel.app)
+  if (allowed.some(u => u.includes('vercel.app')) && normalized.endsWith('.vercel.app')) {
+    return true;
+  }
+  return false;
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   nodeEnv,
   isProduction,
   appMode: (process.env.APP_MODE || 'SIMULATED') as 'LIVE' | 'HISTORICAL_REPLAY' | 'SIMULATED' | 'END_OF_DAY',
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
-  mlServiceUrl: process.env.ML_SERVICE_URL || 'http://localhost:8000',
+  frontendUrl: (process.env.FRONTEND_URL || 'http://localhost:5173').trim().replace(/\/+$/, ''),
+  mlServiceUrl: (process.env.ML_SERVICE_URL || 'http://localhost:8000').trim().replace(/\/+$/, ''),
   
   jwt: {
     accessSecret,
@@ -107,7 +131,7 @@ export const config = {
     database: process.env.DB_NAME || 'marketpulse',
     user: process.env.DB_USER || 'postgres',
     password: dbPassword,
-    ssl: process.env.DB_SSL === 'true',
+    ssl: process.env.DB_SSL === 'true' || Boolean(dbUrl && (dbUrl.includes('sslmode=require') || dbUrl.includes('neon.tech'))),
   },
 
   redis: {

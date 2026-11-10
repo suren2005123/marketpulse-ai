@@ -79,6 +79,20 @@ class DatabaseService {
     const isPostgresUrl = config.db.url.startsWith('postgres://') || config.db.url.startsWith('postgresql://');
     const pgPassword = config.db.password || process.env.DB_PASSWORD || '';
 
+    const isSsl = config.db.ssl || config.db.url.includes('sslmode=require') || config.db.url.includes('neon.tech');
+
+    // Prefer DATABASE_URL if a valid PostgreSQL connection string is provided (e.g. Neon PostgreSQL)
+    if (isPostgresUrl) {
+      this.isConfiguredPg = true;
+      return {
+        connectionString: config.db.url,
+        password: pgPassword || undefined,
+        ssl: isSsl ? { rejectUnauthorized: false } : undefined,
+        connectionTimeoutMillis: 8000,
+        idleTimeoutMillis: 1000,
+      };
+    }
+
     // If discrete credentials with password are provided, prefer discrete object for guaranteed connection accuracy
     if (config.db.host && config.db.database && config.db.user && pgPassword) {
       this.isConfiguredPg = true;
@@ -88,19 +102,8 @@ class DatabaseService {
         database: config.db.database,
         user: config.db.user,
         password: pgPassword,
-        ssl: config.db.ssl ? { rejectUnauthorized: false } : undefined,
-        connectionTimeoutMillis: 5000,
-        idleTimeoutMillis: 1000,
-      };
-    }
-
-    if (isPostgresUrl) {
-      this.isConfiguredPg = true;
-      return {
-        connectionString: config.db.url,
-        password: pgPassword || undefined,
-        ssl: config.db.ssl ? { rejectUnauthorized: false } : undefined,
-        connectionTimeoutMillis: 5000,
+        ssl: isSsl ? { rejectUnauthorized: false } : undefined,
+        connectionTimeoutMillis: 8000,
         idleTimeoutMillis: 1000,
       };
     }

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext.js';
-import { getAccessToken } from '../api/client.js';
+import { getAccessToken, API_BASE_URL } from '../api/client.js';
 import { MarketQuote, Candle, Forecast, FeedStatusData, TriggeredAlertNotification } from '../types/index.js';
 
 interface LatencyMetrics {
@@ -73,14 +73,16 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     const token = getAccessToken();
-    const newSocket = io({
+    const wsTarget = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WS_URL) || API_BASE_URL || undefined;
+    const socketOptions = {
       auth: { token },
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
       timeout: 10000,
-    });
+    };
+    const newSocket = wsTarget ? io(wsTarget, socketOptions) : io(socketOptions);
 
     setSocket(newSocket);
     setConnectionStatus('reconnecting');
